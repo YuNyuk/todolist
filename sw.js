@@ -1,6 +1,6 @@
 // 앱 화면 파일만 캐시 (네트워크 우선 → 실패 시 캐시). Supabase 요청은 건드리지 않음.
-const CACHE = "todo-v1";
-const ASSETS = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const CACHE = "todo-v2";
+const ASSETS = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon/icon-192.png", "./icon/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
