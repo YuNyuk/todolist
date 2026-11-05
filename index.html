@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>할 일</title>
+<meta name="theme-color" content="#2f5bea">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="할 일">
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --text:#1c1f24; --muted:#6b7280; --line:#e4e7ec;
+  --accent:#2f5bea; --accent-soft:#e8eefe; --danger:#d93b3b; --danger-soft:#fdecec;
+  --ok:#1f9d55; --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#111318; --panel:#1a1d24; --text:#e7e9ee; --muted:#9aa1ad; --line:#2a2f39;
+    --accent:#6f8fff; --accent-soft:#232c48; --danger:#ff6b6b; --danger-soft:#3a2224;
+    --ok:#4cc38a; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* ---------- auth / setup ---------- */
+.center{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:380px}
+.card h1{margin:0 0 4px;font-size:22px}
+.card p{margin:0 0 20px;color:var(--muted);font-size:14px}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);outline:none}
+.input:focus{border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger);border-color:var(--line)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.block{width:100%}
+.link{background:none;border:none;color:var(--accent);padding:0;font-size:14px}
+.msg{font-size:13px;margin-top:10px;min-height:1em}
+.msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
+code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100%}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;padding:4px 8px 12px}
+.brand img{width:24px;height:24px;border-radius:6px}
+.navbtn{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:none;border-radius:8px;background:none;text-align:left}
+.navbtn:hover{background:var(--bg)}
+.navbtn.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navbtn .count{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.navbtn.active .count{color:var(--accent)}
+.navbtn .count.warn{color:var(--danger);font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.side h3{font-size:12px;font-weight:600;color:var(--muted);margin:16px 10px 4px;display:flex;align-items:center}
+.side h3 button{margin-left:auto;border:none;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 2px}
+.side h3 button:hover{color:var(--accent)}
+.newproj{display:flex;gap:6px;padding:4px 6px}
+.newproj .input{padding:6px 8px;font-size:14px}
+.side .spacer{flex:1}
+.side .who{font-size:12px;color:var(--muted);padding:8px 10px;word-break:break-all}
+
+.main{padding:24px 32px 80px;max-width:860px;width:100%}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.head h2{margin:0;font-size:22px}
+.head .sub{color:var(--muted);font-size:14px}
+.head .actions{margin-left:auto;display:flex;gap:6px}
+
+/* add bar */
+.addbar{display:flex;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:20px}
+.addbar .title{flex:1 1 240px;border:none;background:transparent;padding:8px;outline:none;min-width:0}
+.addbar input[type=date],.addbar select{border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:6px 8px;min-width:0}
+.quick{display:flex;gap:4px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:4px 10px;font-size:13px}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* list */
+.group{margin-bottom:22px}
+.group h4{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);display:flex;gap:6px;align-items:baseline}
+.group h4 .n{font-weight:400}
+.group.overdue h4{color:var(--danger)}
+.list{list-style:none;margin:0;padding:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.item:first-child{border-top:none}
+.check{flex:none;width:20px;height:20px;margin-top:2px;border-radius:50%;border:2px solid var(--muted);background:none;padding:0;display:flex;align-items:center;justify-content:center}
+.check:hover{border-color:var(--accent)}
+.item.done .check{background:var(--ok);border-color:var(--ok)}
+.item.done .check::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.ibody{flex:1;min-width:0;cursor:pointer}
+.ititle{word-break:break-word}
+.item.done .ititle{color:var(--muted);text-decoration:line-through}
+.imeta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted);margin-top:2px}
+.imeta .late{color:var(--danger)}
+.pchip{display:inline-flex;align-items:center;gap:4px}
+.pchip .dot{width:8px;height:8px}
+.imemo{font-size:13px;color:var(--muted);white-space:pre-wrap;margin-top:4px;word-break:break-word}
+.empty{text-align:center;color:var(--muted);padding:40px 16px;background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius)}
+.toggle-done{margin-top:6px}
+
+/* dialog */
+dialog{border:none;border-radius:14px;padding:0;background:var(--panel);color:var(--text);width:min(460px,calc(100% - 32px));box-shadow:0 10px 40px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.dlg{padding:20px}
+.dlg h3{margin:0 0 14px;font-size:17px}
+.dlg textarea{min-height:90px;resize:vertical}
+.dlg .row{display:flex;gap:8px}
+.dlg .row>*{flex:1;min-width:0}
+.dlg .foot{display:flex;gap:8px;margin-top:16px}
+.dlg .foot .grow{flex:1}
+.colors{display:flex;gap:8px;flex-wrap:wrap}
+.colors button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
+.colors button.on{border-color:var(--text)}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:calc(100% - 32px)}
+
+/* ---------- mobile ---------- */
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .side{position:sticky;top:0;z-index:10;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px 12px;border-right:none;border-bottom:1px solid var(--line);gap:4px;scrollbar-width:none}
+  .side::-webkit-scrollbar{display:none}
+  .brand,.side h3,.side .spacer,.side .who,.newproj{display:none}
+  .navbtn{width:auto;flex:none;padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+  .navbtn .count{margin-left:4px}
+  .navbtn.mobile-only{display:flex}
+  .main{padding:16px 16px 80px}
+  .head h2{font-size:19px}
+  .addbar .title{flex-basis:100%}
+}
+.mobile-only{display:none}
+</style>
+</head>
+<body>
+
+<!-- 설정 안내 -->
+<div id="setup" class="center hidden">
+  <div class="card">
+    <h1>설정이 필요해요</h1>
+    <p><code>config.js</code> 파일에 Supabase URL과 Publishable key를 넣은 뒤 다시 열어주세요.</p>
+  </div>
+</div>
+
+<!-- 로그인 -->
+<div id="auth" class="center hidden">
+  <form class="card" id="authForm">
+    <h1 id="authTitle">로그인</h1>
+    <p>회사 업무 할 일 정리</p>
+    <label class="field"><span>이메일</span><input class="input" type="email" id="email" required autocomplete="email"></label>
+    <label class="field"><span>비밀번호</span><input class="input" type="password" id="password" required minlength="6" autocomplete="current-password"></label>
+    <button class="btn primary block" type="submit" id="authBtn">로그인</button>
+    <div class="msg" id="authMsg"></div>
+    <div style="margin-top:14px;text-align:center"><button type="button" class="link" id="authSwitch">처음이신가요? 계정 만들기</button></div>
+  </form>
+</div>
+
+<!-- 앱 -->
+<div id="app" class="app hidden">
+  <nav class="side" id="side"></nav>
+  <main class="main">
+    <div class="head" id="head"></div>
+    <form class="addbar" id="addForm" autocomplete="off">
+      <input class="title" id="addTitle" placeholder="할 일 추가… (Enter)" required>
+      <div class="quick" id="quick"></div>
+      <input type="date" id="addDate" aria-label="날짜">
+      <select id="addProject" aria-label="프로젝트"></select>
+      <button class="btn primary" type="submit">추가</button>
+    </form>
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- 할 일 편집 -->
+<dialog id="todoDlg">
+  <form class="dlg" method="dialog" id="todoForm">
+    <h3>할 일 수정</h3>
+    <label class="field"><span>제목</span><input class="input" id="tTitle" required></label>
+    <div class="row">
+      <label class="field"><span>날짜</span><input class="input" type="date" id="tDate"></label>
+      <label class="field"><span>프로젝트</span><select class="input" id="tProject"></select></label>
+    </div>
+    <label class="field"><span>메모</span><textarea class="input" id="tMemo"></textarea></label>
+    <div class="foot">
+      <button class="btn danger" type="button" id="tDelete">삭제</button>
+      <span class="grow"></span>
+      <button class="btn" type="button" id="tCancel">취소</button>
+      <button class="btn primary" type="submit">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 프로젝트 편집 -->
+<dialog id="projDlg">
+  <form class="dlg" method="dialog" id="projForm">
+    <h3 id="pDlgTitle">프로젝트</h3>
+    <label class="field"><span>이름</span><input class="input" id="pName" required></label>
+    <div class="field"><span style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px">색상</span><div class="colors" id="pColors"></div></div>
+    <div class="foot">
+      <button class="btn danger" type="button" id="pDelete">삭제</button>
+      <span class="grow"></span>
+      <button class="btn" type="button" id="pCancel">취소</button>
+      <button class="btn primary" type="submit">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+"use strict";
+/* ================= 유틸 ================= */
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "style") el.style.cssText = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "value" || k === "checked") el[k] = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+function setKids(el, ...kids) { el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false)); }
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const today = () => ymd(new Date());
+function addDays(s, n) { const [y, m, d] = s.split("-").map(Number); return ymd(new Date(y, m - 1, d + n)); }
+function fmtDate(s) {
+  if (!s) return "날짜 없음";
+  const [y, m, d] = s.split("-").map(Number);
+  const wd = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
+  const base = (y !== new Date().getFullYear() ? `${y}년 ` : "") + `${m}월 ${d}일 (${wd})`;
+  const t = today();
+  if (s === t) return `오늘 · ${base}`;
+  if (s === addDays(t, 1)) return `내일 · ${base}`;
+  if (s === addDays(t, -1)) return `어제 · ${base}`;
+  return base;
+}
+function shortDate(s) {
+  if (!s) return "";
+  const t = today();
+  if (s === t) return "오늘";
+  if (s === addDays(t, 1)) return "내일";
+  if (s === addDays(t, -1)) return "어제";
+  const [y, m, d] = s.split("-").map(Number);
+  return (y !== new Date().getFullYear() ? `${y}.` : "") + `${m}/${d}`;
+}
+let toastTimer;
+function toast(msg) {
+  let t = document.querySelector(".toast");
+  if (!t) { t = h("div", { class: "toast" }); document.body.append(t); }
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), 2600);
+}
+const COLORS = ["#2f5bea", "#e5484d", "#f5a524", "#1f9d55", "#8e4ec6", "#0ea5b7", "#d6409f", "#6b7280"];
+
+/* ================= Supabase ================= */
+const cfg = window.TODO_CONFIG || {};
+const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT") && cfg.SUPABASE_KEY && !cfg.SUPABASE_KEY.includes("YOUR-");
+if (!configured || !window.supabase) {
+  $("setup").classList.remove("hidden");
+  throw new Error("config not set");
+}
+const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+
+/* ================= 상태 ================= */
+const S = {
+  user: null,
+  projects: [],
+  todos: [],
+  view: "today",          // today | dates | nodate | done | p:<id>
+  showDoneInProject: false,
+  quickDate: "today",     // today | tomorrow | none | custom
+};
+try { const v = localStorage.getItem("todo.view"); if (v) S.view = v; } catch (e) {}
+const projById = (id) => S.projects.find((p) => p.id === id);
+
+/* ================= 인증 ================= */
+let signupMode = false;
+$("authSwitch").onclick = () => {
+  signupMode = !signupMode;
+  $("authTitle").textContent = signupMode ? "계정 만들기" : "로그인";
+  $("authBtn").textContent = signupMode ? "가입하기" : "로그인";
+  $("authSwitch").textContent = signupMode ? "이미 계정이 있어요. 로그인" : "처음이신가요? 계정 만들기";
+  $("password").autocomplete = signupMode ? "new-password" : "current-password";
+  setAuthMsg("");
+};
+function setAuthMsg(t, kind) { const m = $("authMsg"); m.textContent = t; m.className = "msg " + (kind || ""); }
+$("authForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("email").value.trim(), password = $("password").value;
+  $("authBtn").disabled = true;
+  setAuthMsg(signupMode ? "가입 중…" : "로그인 중…");
+  try {
+    if (signupMode) {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+      if (error) throw error;
+      if (!data.session) setAuthMsg("확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "ok");
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+  } catch (err) {
+    const m = String(err.message || err);
+    setAuthMsg(
+      /Invalid login/i.test(m) ? "이메일 또는 비밀번호가 맞지 않아요." :
+      /not confirmed/i.test(m) ? "이메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러주세요." :
+      /Signups not allowed|signup.*disabled/i.test(m) ? "새 가입이 막혀 있어요." : m, "err");
+  } finally { $("authBtn").disabled = false; }
+};
+
+sb.auth.onAuthStateChange((event, session) => {
+  // 콜백 안에서 바로 await 하면 교착될 수 있어 다음 틱으로 넘김
+  setTimeout(() => onSession(session), 0);
+});
+async function onSession(session) {
+  const u = session ? session.user : null;
+  if (u && S.user && u.id === S.user.id) return;
+  S.user = u;
+  if (!u) {
+    $("app").classList.add("hidden");
+    $("auth").classList.remove("hidden");
+    return;
+  }
+  $("auth").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  await loadAll();
+}
+
+/* ================= 데이터 ================= */
+async function loadAll() {
+  const [p, open, done] = await Promise.all([
+    sb.from("projects").select("*").order("created_at"),
+    sb.from("todos").select("*").eq("done", false),
+    sb.from("todos").select("*").eq("done", true).order("done_at", { ascending: false }).limit(500),
+  ]);
+  const err = p.error || open.error || done.error;
+  if (err) { toast("불러오기 실패: " + err.message); return; }
+  S.projects = p.data;
+  S.todos = [...open.data, ...done.data];
+  if (S.view.startsWith("p:") && !projById(S.view.slice(2))) S.view = "today";
+  render();
+}
+// 다른 기기에서 바꾼 내용 반영: 탭으로 돌아올 때 새로고침
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user) loadAll(); });
+
+async function addTodo(row) {
+  const { data, error } = await sb.from("todos").insert(row).select().single();
+  if (error) return toast("추가 실패: " + error.message);
+  S.todos.push(data); render();
+}
+async function patchTodo(id, patch) {
+  const t = S.todos.find((x) => x.id === id); if (!t) return;
+  const backup = { ...t };
+  Object.assign(t, patch); render();
+  const { error } = await sb.from("todos").update(patch).eq("id", id);
+  if (error) { Object.assign(t, backup); render(); toast("저장 실패: " + error.message); }
+}
+async function deleteTodo(id) {
+  const i = S.todos.findIndex((x) => x.id === id); if (i < 0) return;
+  const [removed] = S.todos.splice(i, 1); render();
+  const { error } = await sb.from("todos").delete().eq("id", id);
+  if (error) { S.todos.splice(i, 0, removed); render(); toast("삭제 실패: " + error.message); }
+}
+function toggleDone(t) {
+  const done = !t.done;
+  patchTodo(t.id, { done, done_at: done ? new Date().toISOString() : null });
+}
+
+/* ================= 화면: 사이드바 ================= */
+function setView(v) { S.view = v; S.showDoneInProject = false; try { localStorage.setItem("todo.view", v); } catch (e) {} render(); }
+function counts() {
+  const t = today(); const open = S.todos.filter((x) => !x.done);
+  return {
+    today: open.filter((x) => x.due_date && x.due_date <= t).length,
+    overdue: open.filter((x) => x.due_date && x.due_date < t).length,
+    dates: open.length,
+    nodate: open.filter((x) => !x.due_date).length,
+    proj: (id) => open.filter((x) => x.project_id === id).length,
+  };
+}
+function renderSide() {
+  const c = counts();
+  const nav = (v, icon, label, n, warn) => h("button", { class: "navbtn" + (S.view === v ? " active" : ""), onclick: () => setView(v) },
+    h("span", { "aria-hidden": "true" }, icon), label, n ? h("span", { class: "count" + (warn ? " warn" : "") }, n) : null);
+  const side = $("side"); setKids(side, 
+    h("div", { class: "brand" }, h("img", { src: "icon-192.png", alt: "" }), "할 일"),
+    nav("today", "☀️", "오늘", c.today, c.overdue > 0),
+    nav("dates", "📅", "날짜별", c.dates),
+    nav("nodate", "📥", "날짜 없음", c.nodate),
+    nav("done", "✅", "완료"),
+    h("h3", {}, "프로젝트", h("button", { title: "프로젝트 추가", onclick: () => openProject(null) }, "+")),
+    S.projects.map((p) => h("button", { class: "navbtn" + (S.view === "p:" + p.id ? " active" : ""), onclick: () => setView("p:" + p.id) },
+      h("span", { class: "dot", style: `background:${p.color}` }), h("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, p.name),
+      c.proj(p.id) ? h("span", { class: "count" }, c.proj(p.id)) : null)),
+    h("button", { class: "navbtn mobile-only", onclick: () => openProject(null) }, "+ 프로젝트"),
+    h("div", { class: "spacer" }),
+    h("div", { class: "who" }, S.user.email),
+    h("button", { class: "navbtn", onclick: logout }, "↩︎", "로그아웃"),
+  );
+  // 모바일에서 선택된 탭이 보이도록
+  const act = side.querySelector(".active"); if (act && window.innerWidth <= 760) act.scrollIntoView({ inline: "center", block: "nearest" });
+}
+async function logout() { await sb.auth.signOut(); S.todos = []; S.projects = []; }
+
+/* ================= 화면: 헤더/추가바 ================= */
+function renderHead() {
+  const head = $("head"); const v = S.view;
+  if (v.startsWith("p:")) {
+    const p = projById(v.slice(2));
+    setKids(head, h("span", { class: "dot", style: `background:${p.color};width:14px;height:14px` }), h("h2", {}, p.name),
+      h("div", { class: "actions" }, h("button", { class: "btn ghost", onclick: () => openProject(p) }, "편집")));
+  } else {
+    const titles = { today: "오늘", dates: "날짜별", nodate: "날짜 없음", done: "완료" };
+    setKids(head, h("h2", {}, titles[v]), v === "today" ? h("span", { class: "sub" }, fmtDate(today()).replace("오늘 · ", "")) : null);
+  }
+  // 추가바 기본값
+  $("addForm").classList.toggle("hidden", v === "done");
+  // 프로젝트 화면이면 그 프로젝트, 다른 화면으로 넘어오면 '프로젝트 없음'으로 초기화
+  const sel = $("addProject");
+  const cur = v.startsWith("p:") ? v.slice(2) : (S.lastHeadView === v ? sel.value : "");
+  S.lastHeadView = v;
+  setKids(sel, h("option", { value: "" }, "프로젝트 없음"), S.projects.map((p) => h("option", { value: p.id }, p.name)));
+  sel.value = projById(cur) ? cur : "";
+  if (v === "today") S.quickDate = "today";
+  else if (v === "nodate") S.quickDate = "none";
+  renderQuick();
+}
+function renderQuick() {
+  const q = S.quickDate, d = $("addDate");
+  if (q === "today") d.value = today();
+  else if (q === "tomorrow") d.value = addDays(today(), 1);
+  else if (q === "none") d.value = "";
+  const chip = (k, label) => h("button", { type: "button", class: "chip" + (q === k ? " on" : ""), onclick: () => { S.quickDate = k; renderQuick(); } }, label);
+  $("quick").replaceChildren(chip("today", "오늘"), chip("tomorrow", "내일"), chip("none", "없음"));
+}
+$("addDate").oninput = () => { S.quickDate = "custom"; const q = $("quick"); q.querySelectorAll(".chip").forEach((c) => c.classList.remove("on")); };
+$("addForm").onsubmit = (e) => {
+  e.preventDefault();
+  const title = $("addTitle").value.trim(); if (!title) return;
+  addTodo({ title, due_date: $("addDate").value || null, project_id: $("addProject").value || null });
+  $("addTitle").value = ""; $("addTitle").focus();
+};
+
+/* ================= 화면: 목록 ================= */
+function sortTodos(a, b) {
+  if (a.done !== b.done) return a.done ? 1 : -1;
+  return (a.created_at || "").localeCompare(b.created_at || "");
+}
+function itemEl(t, opts = {}) {
+  const p = projById(t.project_id); const late = !t.done && t.due_date && t.due_date < today();
+  return h("li", { class: "item" + (t.done ? " done" : "") },
+    h("button", { class: "check", "aria-label": t.done ? "완료 취소" : "완료", onclick: () => toggleDone(t) }),
+    h("div", { class: "ibody", onclick: () => openTodo(t) },
+      h("div", { class: "ititle" }, t.title),
+      h("div", { class: "imeta" },
+        !opts.hideProject && p ? h("span", { class: "pchip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null,
+        !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
+      ),
+      t.memo ? h("div", { class: "imemo" }, t.memo) : null,
+    ));
+}
+function groupEl(title, items, opts = {}) {
+  if (!items.length) return null;
+  return h("section", { class: "group" + (opts.cls ? " " + opts.cls : "") },
+    h("h4", {}, title, h("span", { class: "n" }, items.length)),
+    h("ul", { class: "list" }, items.sort(sortTodos).map((t) => itemEl(t, opts))));
+}
+function byDate(items, opts) {
+  const map = new Map();
+  for (const t of items) { const k = t.due_date || ""; if (!map.has(k)) map.set(k, []); map.get(k).push(t); }
+  const keys = [...map.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)));
+  const t0 = today();
+  return keys.map((k) => groupEl(fmtDate(k), map.get(k), { ...opts, hideDate: !!k, cls: k && k < t0 ? "overdue" : "" }));
+}
+function emptyEl(msg) { return h("div", { class: "empty" }, msg); }
+
+function renderContent() {
+  const v = S.view, t0 = today(), box = $("content");
+  const open = S.todos.filter((x) => !x.done);
+  let out = [];
+  if (v === "today") {
+    const overdue = open.filter((x) => x.due_date && x.due_date < t0);
+    const todays = S.todos.filter((x) => x.due_date === t0 && (!x.done || (x.done_at && ymd(new Date(x.done_at)) === t0)));
+    out = [groupEl("밀린 일", overdue, { cls: "overdue" }), groupEl("오늘 할 일", todays, { hideDate: true })];
+    if (!overdue.length && !todays.length) out = [emptyEl("오늘 할 일이 없어요 🎉")];
+  } else if (v === "dates") {
+    out = byDate(open.filter((x) => x.due_date), {});
+    const nd = open.filter((x) => !x.due_date);
+    if (nd.length) out.push(groupEl("날짜 없음", nd));
+    if (!open.length) out = [emptyEl("남은 할 일이 없어요")];
+  } else if (v === "nodate") {
+    const nd = open.filter((x) => !x.due_date);
+    out = nd.length ? [groupEl("날짜 없는 할 일", nd)] : [emptyEl("날짜 없는 할 일이 없어요")];
+  } else if (v === "done") {
+    const done = S.todos.filter((x) => x.done).sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
+    const map = new Map();
+    for (const t of done) { const k = t.done_at ? ymd(new Date(t.done_at)) : ""; if (!map.has(k)) map.set(k, []); map.get(k).push(t); }
+    out = [...map.entries()].map(([k, items]) => groupEl((k ? fmtDate(k) : "날짜 미상") + " 완료", items, {}));
+    if (!done.length) out = [emptyEl("아직 완료한 일이 없어요")];
+  } else if (v.startsWith("p:")) {
+    const pid = v.slice(2);
+    const mine = S.todos.filter((x) => x.project_id === pid);
+    const pOpen = mine.filter((x) => !x.done), pDone = mine.filter((x) => x.done);
+    out = byDate(pOpen, { hideProject: true });
+    if (!pOpen.length) out = [emptyEl("이 프로젝트에 남은 할 일이 없어요")];
+    if (pDone.length) {
+      out.push(h("button", { class: "btn ghost toggle-done", onclick: () => { S.showDoneInProject = !S.showDoneInProject; render(); } },
+        (S.showDoneInProject ? "▾ 완료 숨기기" : "▸ 완료한 일 보기") + ` (${pDone.length})`));
+      if (S.showDoneInProject) out.push(groupEl("완료", pDone.sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")), { hideProject: true }));
+    }
+  }
+  box.replaceChildren(...out.filter(Boolean));
+}
+function render() { if (!S.user) return; renderSide(); renderHead(); renderContent(); }
+
+/* ================= 다이얼로그: 할 일 ================= */
+let editing = null;
+function openTodo(t) {
+  editing = t;
+  $("tTitle").value = t.title; $("tDate").value = t.due_date || ""; $("tMemo").value = t.memo || "";
+  const sel = $("tProject");
+  setKids(sel, h("option", { value: "" }, "프로젝트 없음"), S.projects.map((p) => h("option", { value: p.id }, p.name)));
+  sel.value = t.project_id || "";
+  $("todoDlg").showModal();
+}
+$("tCancel").onclick = () => $("todoDlg").close();
+$("todoForm").onsubmit = (e) => {
+  e.preventDefault();
+  const title = $("tTitle").value.trim(); if (!title) return;
+  patchTodo(editing.id, { title, due_date: $("tDate").value || null, project_id: $("tProject").value || null, memo: $("tMemo").value });
+  $("todoDlg").close();
+};
+$("tDelete").onclick = () => {
+  if (!confirm("이 할 일을 삭제할까요?")) return;
+  deleteTodo(editing.id); $("todoDlg").close();
+};
+
+/* ================= 다이얼로그: 프로젝트 ================= */
+let editingProj = null, projColor = COLORS[0];
+function openProject(p) {
+  editingProj = p;
+  $("pDlgTitle").textContent = p ? "프로젝트 편집" : "새 프로젝트";
+  $("pName").value = p ? p.name : "";
+  projColor = p ? p.color : COLORS[S.projects.length % COLORS.length];
+  $("pDelete").classList.toggle("hidden", !p);
+  renderColors();
+  $("projDlg").showModal();
+}
+function renderColors() {
+  $("pColors").replaceChildren(...COLORS.map((c) => h("button", { type: "button", class: c === projColor ? "on" : "", style: `background:${c}`, "aria-label": c, onclick: () => { projColor = c; renderColors(); } })));
+}
+$("pCancel").onclick = () => $("projDlg").close();
+$("projForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("pName").value.trim(); if (!name) return;
+  $("projDlg").close();
+  if (editingProj) {
+    const { error } = await sb.from("projects").update({ name, color: projColor }).eq("id", editingProj.id);
+    if (error) return toast("저장 실패: " + error.message);
+    Object.assign(editingProj, { name, color: projColor });
+  } else {
+    const { data, error } = await sb.from("projects").insert({ name, color: projColor }).select().single();
+    if (error) return toast("추가 실패: " + error.message);
+    S.projects.push(data); S.view = "p:" + data.id;
+  }
+  render();
+};
+$("pDelete").onclick = async () => {
+  const p = editingProj;
+  if (!confirm(`'${p.name}' 프로젝트를 삭제할까요?\n안에 있던 할 일은 지워지지 않고 '프로젝트 없음'으로 옮겨져요.`)) return;
+  $("projDlg").close();
+  const { error } = await sb.from("projects").delete().eq("id", p.id);
+  if (error) return toast("삭제 실패: " + error.message);
+  S.projects = S.projects.filter((x) => x.id !== p.id);
+  S.todos.forEach((t) => { if (t.project_id === p.id) t.project_id = null; });
+  if (S.view === "p:" + p.id) S.view = "today";
+  render();
+};
+
+/* ================= 날짜 바뀜 처리 / PWA ================= */
+let lastDay = today();
+setInterval(() => { if (today() !== lastDay) { lastDay = today(); render(); } }, 60000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
