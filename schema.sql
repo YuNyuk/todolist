@@ -19,7 +19,19 @@ create table if not exists public.todos (
   due_date   date,
   done       boolean not null default false,
   done_at    timestamptz,
+  daily      boolean not null default false,   -- 매일 하는 일: due_date = 시작일, done = 종결
   created_at timestamptz not null default now()
+);
+-- 기존 DB에 컬럼 추가 (이미 있으면 무시)
+alter table public.todos add column if not exists daily boolean not null default false;
+
+-- 매일 하는 일의 날짜별 체크 기록
+create table if not exists public.todo_checks (
+  todo_id    uuid not null references public.todos(id) on delete cascade,
+  day        date not null,
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (todo_id, day)
 );
 
 create index if not exists todos_user_due_idx  on public.todos (user_id, due_date);
@@ -40,3 +52,29 @@ create policy "own todos" on public.todos
   for all to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+
+-- 꿀팁 메모장
+create table if not exists public.notes (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title      text not null default '',
+  body       text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.notes enable row level security;
+drop policy if exists "own notes" on public.notes;
+create policy "own notes" on public.notes
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+alter table public.todo_checks enable row level security;
+drop policy if exists "own checks" on public.todo_checks;
+create policy "own checks" on public.todo_checks
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (
+    user_id = (select auth.uid())
+    and exists (select 1 from public.todos t where t.id = todo_id and t.user_id = (select auth.uid()))
+  );

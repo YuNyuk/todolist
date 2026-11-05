@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>할 일</title>
 <meta name="theme-color" content="#2f5bea">
+<!-- 폰트: Pretendard (한글+영문 무료 폰트, 화면에 쓰인 글자만 나눠 받는 방식이라 가벼움) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon/icon-192.png">
 <link rel="apple-touch-icon" href="icon/icon-192.png">
@@ -27,7 +29,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font:400 15px/1.5 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 .hidden{display:none!important}
@@ -77,6 +79,8 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
 .head h2{margin:0;font-size:22px}
 .head .sub{color:var(--muted);font-size:14px}
 .head .actions{margin-left:auto;display:flex;gap:6px}
+.wkcal{position:relative;display:inline-flex}
+.wkpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 
 /* add bar */
 .addbar{display:flex;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:20px}
@@ -88,9 +92,14 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
 
 /* list */
 .group{margin-bottom:22px}
-.group h4{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);display:flex;gap:6px;align-items:baseline}
-.group h4 .n{font-weight:400}
+.group h4{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.group h4 .n{font-size:13px;font-weight:400}
 .group.overdue h4{color:var(--danger)}
+.group.today h4{color:var(--accent)}
+.sgroup+.sgroup{margin-top:10px}
+.sgroup h5{margin:0 0 6px 4px;font-size:15px;font-weight:700;color:var(--text);display:flex;gap:8px;align-items:center}
+.sgroup h5 .dot{width:10px;height:10px}
+.sgroup h5 .n{font-weight:400;color:var(--muted)}
 .list{list-style:none;margin:0;padding:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
 .item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
 .item:first-child{border-top:none}
@@ -119,6 +128,51 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .dlg .row>*{flex:1;min-width:0}
 .dlg .foot{display:flex;gap:8px;margin-top:16px}
 .dlg .foot .grow{flex:1}
+/* 날씨 (넓은 화면 전용) */
+.wx{display:none}
+@media (min-width:1280px){
+  .app{grid-template-columns:240px minmax(0,860px) minmax(280px,340px)}
+  .wx{display:block;position:sticky;top:0;height:100vh;overflow:auto;padding:24px 24px 56px 8px}
+}
+.wxcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.wxloc{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.wxloc .link{font-size:13px;color:var(--text);text-align:left}
+.wxnow{display:flex;align-items:center;gap:12px;margin:12px 0 4px}
+.wxemo,.wxtemp{font-size:44px;line-height:1}
+.wxtemp{font-weight:700}
+.wxdesc{font-size:16px;font-weight:700}
+.wxsub{font-size:13px;color:var(--muted);margin-top:2px}
+.wxstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;text-align:center;font-size:12px;color:var(--muted)}
+.wxstats b{display:block;font-size:15px;color:var(--text)}
+.wxair{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;font-size:12px;color:var(--muted)}
+.wxair b{display:block;font-size:16px;margin:2px 0}
+.g1{color:#4c9aff}.g2{color:var(--ok)}.g3{color:#f5a524}.g4{color:var(--danger)}
+.wxh{font-size:13px;font-weight:700;margin-bottom:8px}
+.wxhours{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;text-align:center;font-size:13px}
+.wxhours small{display:block;color:var(--muted);font-size:11px}
+.wxhours span{display:block;font-size:18px;margin:2px 0}
+.wxhours .wxpop,.wxday .wxpop{color:#4c9aff}
+.wxday{display:grid;grid-template-columns:40px 30px 44px 1fr;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.wxh+.wxday{border-top:none}
+.wxday>span:last-child{text-align:right}
+.wxday .lo{color:var(--muted)}
+.wxsrc{font-size:11px;color:var(--muted);text-align:right;opacity:.7}
+.wxerr{display:flex;flex-direction:column;gap:8px;align-items:center;color:var(--muted);font-size:14px}
+
+/* 꿀팁 메모 */
+.notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;min-width:0}
+.note:hover{border-color:var(--muted)}
+.note{display:flex;align-items:center;justify-content:center;text-align:center}
+.note h4{margin:0;font-size:15px;font-weight:700;word-break:break-word}
+#noteDlg{width:min(960px,calc(100% - 32px))}
+#noteDlg textarea{min-height:320px}
+.nview-body{white-space:pre-wrap;word-break:break-word;font-size:15px;line-height:1.7;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;max-height:65vh;overflow:auto;user-select:text}
+.check-row{display:flex;gap:8px;align-items:center;margin:0 0 12px;font-size:14px;cursor:pointer}
+.check-row input{width:16px;height:16px;accent-color:var(--accent)}
+.check-row small{color:var(--muted);font-size:12px}
+.btn.ok{color:var(--ok);border-color:var(--ok)}
+.imeta .daily{color:var(--accent)}
 .colors{display:flex;gap:8px;flex-wrap:wrap}
 .colors button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
 .colors button.on{border-color:var(--text)}
@@ -182,6 +236,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </form>
     <div id="content"></div>
   </main>
+  <!-- 날씨: 화면 폭 1280px 이상에서만 보임 -->
+  <aside class="wx" id="wx"></aside>
 </div>
 
 <!-- 할 일 편집 -->
@@ -190,15 +246,41 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <h3>할 일 수정</h3>
     <label class="field"><span>제목</span><input class="input" id="tTitle" required></label>
     <div class="row">
-      <label class="field"><span>날짜</span><input class="input" type="date" id="tDate"></label>
+      <label class="field"><span id="tDateLabel">날짜</span><input class="input" type="date" id="tDate"></label>
       <label class="field"><span>프로젝트</span><select class="input" id="tProject"></select></label>
     </div>
+    <label class="check-row"><input type="checkbox" id="tDaily"> 🔁 매일 하는 일 <small>완료를 누를 때까지 매일 표시</small></label>
     <label class="field"><span>메모</span><textarea class="input" id="tMemo"></textarea></label>
     <div class="foot">
       <button class="btn danger" type="button" id="tDelete">삭제</button>
       <span class="grow"></span>
+      <button class="btn ok" type="button" id="tClose">완료</button>
       <button class="btn" type="button" id="tCancel">취소</button>
       <button class="btn primary" type="submit">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 꿀팁 메모 편집 -->
+<dialog id="noteDlg">
+  <form class="dlg" method="dialog" id="noteForm">
+    <!-- 보기 모드: 저장된 메모를 누르면 먼저 이 화면 (글자 선택·복사 가능) -->
+    <div id="nView">
+      <h3 id="nViewTitle"></h3>
+      <div class="nview-body" id="nViewBody"></div>
+    </div>
+    <!-- 수정 모드: [수정] 버튼 또는 새 메모 -->
+    <div id="nEdit">
+      <h3 id="nDlgTitle">메모</h3>
+      <label class="field"><span>제목</span><input class="input" id="nTitle" placeholder="예: 회사 VPN 접속 방법"></label>
+      <label class="field"><span>내용</span><textarea class="input" id="nBody"></textarea></label>
+    </div>
+    <div class="foot">
+      <button class="btn danger" type="button" id="nDelete">삭제</button>
+      <span class="grow"></span>
+      <button class="btn" type="button" id="nCancel">취소</button>
+      <button class="btn primary" type="button" id="nEditBtn">수정</button>
+      <button class="btn primary" type="submit" id="nSave">저장</button>
     </div>
   </form>
 </dialog>
@@ -245,6 +327,9 @@ const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const today = () => ymd(new Date());
 function addDays(s, n) { const [y, m, d] = s.split("-").map(Number); return ymd(new Date(y, m - 1, d + n)); }
+// 주간 기준: 금요일 시작 ~ 목요일 끝 (회사 주간보고 기준). s가 속한 주의 금요일을 돌려줌
+function weekStart(s) { const [y, m, d] = s.split("-").map(Number); return addDays(s, -((new Date(y, m - 1, d).getDay() + 2) % 7)); }
+function mdw(s) { const [y, m, d] = s.split("-").map(Number); return `${m}/${d}(${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`; }
 function fmtDate(s) {
   if (!s) return "날짜 없음";
   const [y, m, d] = s.split("-").map(Number);
@@ -289,12 +374,16 @@ const S = {
   user: null,
   projects: [],
   todos: [],
-  view: "today",          // today | dates | nodate | done | p:<id>
+  checks: new Set(),      // 매일 하는 일의 날짜별 체크: "할일id|YYYY-MM-DD"
+  notes: [],              // 꿀팁 메모 (최근 수정순)
+  notesErr: "",           // 메모 불러오기 실패 메시지 (실패해도 할 일 기능은 그대로 동작)
+  view: "today",          // today(오늘) | week(주간) | dates(일간) | tips(꿀팁) | p:<id>  (접속하면 항상 오늘)
+  weekOffset: 0,          // 0 = 이번 주, -1 = 지난주, 1 = 다음 주 …
   showDoneInProject: false,
-  quickDate: "today",     // today | tomorrow | none | custom
+  quickDate: "today",     // today | tomorrow | daily | none | custom
 };
-try { const v = localStorage.getItem("todo.view"); if (v) S.view = v; } catch (e) {}
 const projById = (id) => S.projects.find((p) => p.id === id);
+function curWeek() { const s = addDays(weekStart(today()), S.weekOffset * 7); return { s, e: addDays(s, 6) }; }
 
 /* ================= 인증 ================= */
 let signupMode = false;
@@ -345,20 +434,25 @@ async function onSession(session) {
   }
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
+  wxStart();
   await loadAll();
 }
 
 /* ================= 데이터 ================= */
 async function loadAll() {
-  const [p, open, done] = await Promise.all([
+  const [p, open, done, ck, nt] = await Promise.all([
     sb.from("projects").select("*").order("created_at"),
     sb.from("todos").select("*").eq("done", false),
     sb.from("todos").select("*").eq("done", true).order("done_at", { ascending: false }).limit(500),
+    sb.from("todo_checks").select("todo_id,day").gte("day", addDays(today(), -180)),   // 최근 180일 체크 기록
+    sb.from("notes").select("*").order("updated_at", { ascending: false }),
   ]);
-  const err = p.error || open.error || done.error;
+  S.notes = nt.error ? [] : nt.data; S.notesErr = nt.error ? nt.error.message : "";
+  const err = p.error || open.error || done.error || ck.error;
   if (err) { toast("불러오기 실패: " + err.message); return; }
   S.projects = p.data;
   S.todos = [...open.data, ...done.data];
+  S.checks = new Set(ck.data.map((c) => ckKey(c.todo_id, c.day)));
   if (S.view.startsWith("p:") && !projById(S.view.slice(2))) S.view = "today";
   render();
 }
@@ -388,16 +482,58 @@ function toggleDone(t) {
   patchTodo(t.id, { done, done_at: done ? new Date().toISOString() : null });
 }
 
+/* ---- 매일 하는 일 (daily) ----
+   - due_date = 시작일. 시작일부터 종결(done)될 때까지 매일 그날 목록에 나타남
+   - 날마다 체크는 todo_checks 표에 (할일, 날짜)로 따로 저장 → 그날만 취소선
+   - 다이얼로그의 '완료' 버튼 = 종결 (done = true). 종결한 날까지만 표시 */
+const ckKey = (id, d) => id + "|" + d;
+const DAILY_HOUR = 8;   // 매일 하는 일은 그날 아침 8시에 그날 목록에 나타남
+// 매일 하는 일이 '도착한' 마지막 날짜: 8시 이후면 오늘, 8시 전이면 어제
+function dailyDay() { return new Date().getHours() >= DAILY_HOUR ? today() : addDays(today(), -1); }
+function dailyStart(t) { return t.due_date || ymd(new Date(t.created_at)); }
+// d날 목록에 보일지: 시작일 ~ 종결일, 단 아직 8시가 안 된 날(미래 포함)에는 안 보임
+function activeOn(t, d) {
+  if (!t.daily) return false;
+  const e = t.done ? doneOn(t) : "9999-12-31";
+  return dailyStart(t) <= d && d <= e && d <= dailyDay();
+}
+function isChecked(t, d) { return t.daily ? S.checks.has(ckKey(t.id, d)) || (t.done && d >= doneOn(t)) : t.done; }
+async function toggleCheck(t, d) {
+  if (t.done) return toast("종결된 일이에요. 눌러서 '다시 진행'을 선택하면 다시 체크할 수 있어요.");
+  if (t.due_date && d < t.due_date) return toast(`${shortDate(t.due_date)}부터 시작하는 일이에요.`);
+  const k = ckKey(t.id, d), on = !S.checks.has(k);
+  on ? S.checks.add(k) : S.checks.delete(k); render();
+  const { error } = on ? await sb.from("todo_checks").insert({ todo_id: t.id, day: d })
+    : await sb.from("todo_checks").delete().eq("todo_id", t.id).eq("day", d);
+  if (error) { on ? S.checks.delete(k) : S.checks.add(k); render(); toast("저장 실패: " + error.message); }
+}
+
 /* ================= 화면: 사이드바 ================= */
-function setView(v) { S.view = v; S.showDoneInProject = false; try { localStorage.setItem("todo.view", v); } catch (e) {} render(); }
+function setView(v) { S.view = v; S.weekOffset = 0; S.showDoneInProject = false; render(); }
+function moveWeek(n) { S.weekOffset = n === 0 ? 0 : S.weekOffset + n; render(); }
+// 달력에서 고른 날짜가 속한 주(금~목)로 이동
+function jumpWeek(d) {
+  const toDate = (x) => { const [y, m, dd] = x.split("-").map(Number); return new Date(y, m - 1, dd); };
+  S.weekOffset = Math.round((toDate(weekStart(d)) - toDate(weekStart(today()))) / (7 * 864e5));
+  render();
+}
+// 📅 버튼 + 숨겨진 날짜 입력칸: 버튼을 누르면 브라우저 기본 달력이 열림
+function weekPicker(cur) {
+  const pick = h("input", { type: "date", class: "wkpick", tabindex: "-1", "aria-hidden": "true", value: cur,
+    onchange: (e) => { if (e.target.value) jumpWeek(e.target.value); } });
+  const open = () => { try { pick.showPicker(); } catch (err) { pick.focus(); pick.click(); } };
+  return h("span", { class: "wkcal" }, h("button", { class: "btn ghost", title: "달력에서 주 선택", "aria-label": "달력에서 주 선택", onclick: open }, "📅"), pick);
+}
 function counts() {
-  const t = today(); const open = S.todos.filter((x) => !x.done);
+  const t = today(); const all = S.todos.filter((x) => !x.done), open = all.filter((x) => !x.daily);
+  const we = addDays(weekStart(t), 6);
+  const dailyLeft = all.filter((x) => activeOn(x, t) && !isChecked(x, t)).length;   // 오늘 아직 체크 안 한 매일 하는 일
   return {
-    today: open.filter((x) => x.due_date && x.due_date <= t).length,
+    week: open.filter((x) => x.due_date && x.due_date <= we).length + dailyLeft,
+    today: open.filter((x) => x.due_date && x.due_date <= t).length + dailyLeft,
     overdue: open.filter((x) => x.due_date && x.due_date < t).length,
-    dates: open.length,
-    nodate: open.filter((x) => !x.due_date).length,
-    proj: (id) => open.filter((x) => x.project_id === id).length,
+    dates: all.length,
+    proj: (id) => all.filter((x) => x.project_id === id).length,
   };
 }
 function renderSide() {
@@ -407,9 +543,9 @@ function renderSide() {
   const side = $("side"); setKids(side, 
     h("div", { class: "brand" }, h("img", { src: "icon/icon-192.png", alt: "" }), "할 일"),
     nav("today", "☀️", "오늘", c.today, c.overdue > 0),
-    nav("dates", "📅", "날짜별", c.dates),
-    nav("nodate", "📥", "날짜 없음", c.nodate),
-    nav("done", "✅", "완료"),
+    nav("week", "🗓️", "주간", c.week, c.overdue > 0),
+    nav("dates", "📅", "일간", c.dates),
+    nav("tips", "💡", "꿀팁", S.notes.length),
     h("h3", {}, "프로젝트", h("button", { title: "프로젝트 추가", onclick: () => openProject(null) }, "+")),
     S.projects.map((p) => h("button", { class: "navbtn" + (S.view === "p:" + p.id ? " active" : ""), onclick: () => setView("p:" + p.id) },
       h("span", { class: "dot", style: `background:${p.color}` }), h("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, p.name),
@@ -431,103 +567,154 @@ function renderHead() {
     const p = projById(v.slice(2));
     setKids(head, h("span", { class: "dot", style: `background:${p.color};width:14px;height:14px` }), h("h2", {}, p.name),
       h("div", { class: "actions" }, h("button", { class: "btn ghost", onclick: () => openProject(p) }, "편집")));
+  } else if (v === "week") {
+    const { s, e } = curWeek(), o = S.weekOffset;
+    const label = o === 0 ? "이번 주" : o === -1 ? "지난주" : o === 1 ? "다음 주" : o < 0 ? `${-o}주 전` : `${o}주 후`;
+    setKids(head, h("h2", {}, label), h("span", { class: "sub" }, `${mdw(s)} ~ ${mdw(e)}`),
+      h("div", { class: "actions" },
+        // [이번 주]는 화살표 왼쪽에: 화살표 위치가 고정돼 연타해도 엉뚱한 버튼이 눌리지 않음
+        o ? h("button", { class: "btn", onclick: () => moveWeek(0) }, "이번 주") : null,
+        h("button", { class: "btn ghost", title: "이전 주", onclick: () => moveWeek(-1) }, "◀"),
+        h("button", { class: "btn ghost", title: "다음 주", onclick: () => moveWeek(1) }, "▶"),
+        weekPicker(s)));
+  } else if (v === "tips") {
+    setKids(head, h("h2", {}, "꿀팁"), h("div", { class: "actions" }, h("button", { class: "btn primary", onclick: () => openNote(null) }, "+ 새 메모")));
   } else {
-    const titles = { today: "오늘", dates: "날짜별", nodate: "날짜 없음", done: "완료" };
+    const titles = { today: "오늘", dates: "일간" };
     setKids(head, h("h2", {}, titles[v]), v === "today" ? h("span", { class: "sub" }, fmtDate(today()).replace("오늘 · ", "")) : null);
   }
-  // 추가바 기본값
-  $("addForm").classList.toggle("hidden", v === "done");
+  $("addForm").classList.toggle("hidden", v === "tips");   // 꿀팁 화면에서는 할 일 추가줄 숨김
   // 프로젝트 화면이면 그 프로젝트, 다른 화면으로 넘어오면 '프로젝트 없음'으로 초기화
   const sel = $("addProject");
-  const cur = v.startsWith("p:") ? v.slice(2) : (S.lastHeadView === v ? sel.value : "");
+  const changed = S.lastHeadView !== v;
+  const cur = v.startsWith("p:") ? v.slice(2) : (changed ? "" : sel.value);
   S.lastHeadView = v;
   setKids(sel, h("option", { value: "" }, "프로젝트 없음"), S.projects.map((p) => h("option", { value: p.id }, p.name)));
   sel.value = projById(cur) ? cur : "";
-  if (v === "today") S.quickDate = "today";
-  else if (v === "nodate") S.quickDate = "none";
+  // 날짜 기본값은 화면을 바꿨을 때만 초기화 (추가할 때마다 '오늘'로 되돌아가지 않게)
+  if (changed && (v === "today" || v === "week")) S.quickDate = "today";
   renderQuick();
 }
 function renderQuick() {
   const q = S.quickDate, d = $("addDate");
-  if (q === "today") d.value = today();
+  if (q === "today" || q === "daily") d.value = today();   // 매일: 날짜칸 = 시작일 (기본 오늘)
   else if (q === "tomorrow") d.value = addDays(today(), 1);
   else if (q === "none") d.value = "";
   const chip = (k, label) => h("button", { type: "button", class: "chip" + (q === k ? " on" : ""), onclick: () => { S.quickDate = k; renderQuick(); } }, label);
-  $("quick").replaceChildren(chip("today", "오늘"), chip("tomorrow", "내일"), chip("none", "없음"));
+  $("quick").replaceChildren(chip("today", "오늘"), chip("tomorrow", "내일"), chip("daily", "🔁 매일"));
 }
-$("addDate").oninput = () => { S.quickDate = "custom"; const q = $("quick"); q.querySelectorAll(".chip").forEach((c) => c.classList.remove("on")); };
+// 날짜를 직접 고르면 '오늘/내일' 선택 해제 (단, '매일'이면 시작일만 바꾸는 것이라 유지)
+$("addDate").oninput = () => { if (S.quickDate === "daily") return; S.quickDate = "custom"; $("quick").querySelectorAll(".chip").forEach((c) => c.classList.remove("on")); };
 $("addForm").onsubmit = (e) => {
   e.preventDefault();
   const title = $("addTitle").value.trim(); if (!title) return;
-  addTodo({ title, due_date: $("addDate").value || null, project_id: $("addProject").value || null });
+  const daily = S.quickDate === "daily", due = $("addDate").value || (daily ? today() : null);
+  addTodo({ title, daily, due_date: due, project_id: $("addProject").value || null });
+  // 아직 시작 안 된 매일 하는 일은 화면에 안 보이므로 언제 나타나는지 안내
+  if (daily && due > dailyDay()) setTimeout(() => toast(`추가됐어요. ${shortDate(due)} 아침 ${DAILY_HOUR}시부터 표시돼요.`), 300);
   $("addTitle").value = ""; $("addTitle").focus();
 };
 
 /* ================= 화면: 목록 ================= */
+// 매일 하는 일이 항상 위, 그다음은 추가한 순서 (완료해도 자리를 옮기지 않음)
 function sortTodos(a, b) {
-  if (a.done !== b.done) return a.done ? 1 : -1;
+  if (!!a.daily !== !!b.daily) return a.daily ? -1 : 1;
   return (a.created_at || "").localeCompare(b.created_at || "");
 }
+// 완료한 날짜 (로컬 기준 YYYY-MM-DD)
+const doneOn = (x) => (x.done && x.done_at ? ymd(new Date(x.done_at)) : "");
+// 목록에 보일지: 안 끝난 일 + 오늘 완료한 일 (체크해도 바로 사라지지 않고 취소선으로 남음, 다음 날부터 숨김)
+const visible = (x) => !x.daily && (!x.done || doneOn(x) === today());   // 매일 하는 일은 activeOn으로 따로 처리
+// 진행 중인 매일 하는 일 (시작일 아침 8시 이후부터, 오늘 종결한 것도 오늘까지는 표시) → 프로젝트 화면용
+const liveDaily = (x) => x.daily && dailyStart(x) <= dailyDay() && (!x.done || doneOn(x) === today());
 function itemEl(t, opts = {}) {
-  const p = projById(t.project_id); const late = !t.done && t.due_date && t.due_date < today();
-  return h("li", { class: "item" + (t.done ? " done" : "") },
-    h("button", { class: "check", "aria-label": t.done ? "완료 취소" : "완료", onclick: () => toggleDone(t) }),
+  const day = opts.day || today(), done = isChecked(t, day);   // 매일 하는 일은 그 날짜(day)의 체크 상태
+  const p = projById(t.project_id); const late = !t.daily && !t.done && t.due_date && t.due_date < today();
+  return h("li", { class: "item" + (done ? " done" : "") },
+    h("button", { class: "check", "aria-label": done ? "완료 취소" : "완료", onclick: () => (t.daily ? toggleCheck(t, day) : toggleDone(t)) }),
     h("div", { class: "ibody", onclick: () => openTodo(t) },
       h("div", { class: "ititle" }, t.title),
       h("div", { class: "imeta" },
         !opts.hideProject && p ? h("span", { class: "pchip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null,
-        !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
+        t.daily ? h("span", { class: "daily" }, `🔁 매일 · ${shortDate(t.due_date)}~` + (t.done ? `${shortDate(doneOn(t))} 종결` : "")) : null,
+        !t.daily && !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
       ),
       t.memo ? h("div", { class: "imemo" }, t.memo) : null,
     ));
 }
 function groupEl(title, items, opts = {}) {
   if (!items.length) return null;
+  items.sort(sortTodos);
+  const o = { ...opts, hideProject: true };   // 프로젝트는 서브그룹 제목으로 보여주므로 항목에서는 숨김
+  let body;
+  if (opts.hideProject) body = h("ul", { class: "list" }, items.map((t) => itemEl(t, o)));
+  else {
+    // 프로젝트별 서브그룹 (프로젝트 만든 순서), 프로젝트 없는 일은 맨 아래 etc
+    const subs = [...S.projects.map((p) => [p, items.filter((t) => t.project_id === p.id)]),
+      [null, items.filter((t) => !projById(t.project_id))]].filter(([, l]) => l.length);
+    body = subs.map(([p, l]) => h("div", { class: "sgroup" },
+      h("h5", {}, p ? h("span", { class: "dot", style: `background:${p.color}` }) : null, p ? p.name : "etc", h("span", { class: "n" }, l.length)),
+      h("ul", { class: "list" }, l.map((t) => itemEl(t, o)))));
+  }
   return h("section", { class: "group" + (opts.cls ? " " + opts.cls : "") },
-    h("h4", {}, title, h("span", { class: "n" }, items.length)),
-    h("ul", { class: "list" }, items.sort(sortTodos).map((t) => itemEl(t, opts))));
+    h("h4", {}, title, h("span", { class: "n" }, items.length)), body);
 }
 function byDate(items, opts) {
   const map = new Map();
   for (const t of items) { const k = t.due_date || ""; if (!map.has(k)) map.set(k, []); map.get(k).push(t); }
-  const keys = [...map.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)));
+  // 날짜 순서: opts.desc면 최신 날짜가 위 (날짜 없음은 항상 맨 아래)
+  const keys = [...map.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : opts.desc ? b.localeCompare(a) : a.localeCompare(b)));
   const t0 = today();
-  return keys.map((k) => groupEl(fmtDate(k), map.get(k), { ...opts, hideDate: !!k, cls: k && k < t0 ? "overdue" : "" }));
+  return keys.map((k) => groupEl(fmtDate(k), map.get(k), { ...opts, hideDate: !!k, cls: k && k < t0 && map.get(k).some((x) => !x.done) ? "overdue" : "" }));
 }
 function emptyEl(msg) { return h("div", { class: "empty" }, msg); }
 
 function renderContent() {
   const v = S.view, t0 = today(), box = $("content");
-  const open = S.todos.filter((x) => !x.done);
+  const shown = S.todos.filter(visible);
   let out = [];
-  if (v === "today") {
-    const overdue = open.filter((x) => x.due_date && x.due_date < t0);
-    const todays = S.todos.filter((x) => x.due_date === t0 && (!x.done || (x.done_at && ymd(new Date(x.done_at)) === t0)));
+  if (v === "week") {
+    const { s, e } = curWeek();
+    const inWeek = (d) => d && d >= s && d <= e;
+    // 이번 주 화면에서만: 이번 주 시작 전 날짜인데 못 끝낸 일 (이번 주에 끝냈으면 취소선으로 남김)
+    const overdue = S.weekOffset === 0 ? S.todos.filter((x) => !x.daily && x.due_date && x.due_date < s && (!x.done || inWeek(doneOn(x)))) : [];
+    out = [groupEl("밀린 일 (지난주 이전)", overdue, { cls: "overdue" })];
+    for (let i = 6; i >= 0; i--) {   // 목요일 → 금요일 순 (최신 날짜가 위)
+      // 그날 날짜인 일 + 그날 진행 중인 매일 하는 일 (그날 아침 8시가 지나야 표시)
+      const d = addDays(s, i), items = S.todos.filter((x) => (!x.daily && x.due_date === d) || activeOn(x, d));
+      const cls = d === t0 ? "today" : d < t0 && items.some((x) => !x.daily && !x.done) ? "overdue" : "";
+      out.push(groupEl(fmtDate(d), items, { hideDate: true, cls, day: d }));
+    }
+    // 날짜가 없거나 이 주 이후인데 이 주에 완료한 일 → 주간보고용
+    const doneElse = S.todos.filter((x) => !x.daily && inWeek(doneOn(x)) && !inWeek(x.due_date) && !overdue.includes(x));
+    out.push(groupEl("이 주에 완료한 다른 일", doneElse, {}));
+    if (!out.some(Boolean)) out = [emptyEl("이 주에 할 일이 없어요")];
+  } else if (v === "today") {
+    const overdue = shown.filter((x) => x.due_date && x.due_date < t0);
+    const todays = S.todos.filter((x) => (visible(x) && x.due_date === t0) || activeOn(x, t0));
     out = [groupEl("밀린 일", overdue, { cls: "overdue" }), groupEl("오늘 할 일", todays, { hideDate: true })];
     if (!overdue.length && !todays.length) out = [emptyEl("오늘 할 일이 없어요 🎉")];
   } else if (v === "dates") {
-    out = byDate(open.filter((x) => x.due_date), {});
-    const nd = open.filter((x) => !x.due_date);
+    out = byDate(shown.filter((x) => x.due_date), { desc: true });   // 최신 날짜가 위. 매일 하는 일은 일간 화면에 표시하지 않음
+    const nd = shown.filter((x) => !x.due_date);
     if (nd.length) out.push(groupEl("날짜 없음", nd));
-    if (!open.length) out = [emptyEl("남은 할 일이 없어요")];
-  } else if (v === "nodate") {
-    const nd = open.filter((x) => !x.due_date);
-    out = nd.length ? [groupEl("날짜 없는 할 일", nd)] : [emptyEl("날짜 없는 할 일이 없어요")];
-  } else if (v === "done") {
-    const done = S.todos.filter((x) => x.done).sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-    const map = new Map();
-    for (const t of done) { const k = t.done_at ? ymd(new Date(t.done_at)) : ""; if (!map.has(k)) map.set(k, []); map.get(k).push(t); }
-    out = [...map.entries()].map(([k, items]) => groupEl((k ? fmtDate(k) : "날짜 미상") + " 완료", items, {}));
-    if (!done.length) out = [emptyEl("아직 완료한 일이 없어요")];
+    if (!shown.length) out = [emptyEl("남은 할 일이 없어요")];
+  } else if (v === "tips") {
+    // 꿀팁: 메모 카드 목록 (최근 수정한 것이 위). 누르면 수정창
+    if (S.notesErr) out = [emptyEl("메모를 불러오지 못했어요: " + S.notesErr)];
+    else if (!S.notes.length) out = [emptyEl("아직 메모가 없어요. 오른쪽 위 '+ 새 메모'로 추가하세요")];
+    else out = [h("div", { class: "notes" }, S.notes.map((n) => h("article", { class: "note", onclick: () => openNote(n) },
+      h("h4", {}, n.title || "제목 없음"))))];   // 카드에는 제목만
   } else if (v.startsWith("p:")) {
     const pid = v.slice(2);
     const mine = S.todos.filter((x) => x.project_id === pid);
-    const pOpen = mine.filter((x) => !x.done), pDone = mine.filter((x) => x.done);
-    out = byDate(pOpen, { hideProject: true });
-    if (!pOpen.length) out = [emptyEl("이 프로젝트에 남은 할 일이 없어요")];
+    const pDaily = mine.filter(liveDaily), pShown = mine.filter(visible);
+    const pDone = mine.filter((x) => !pDaily.includes(x) && !pShown.includes(x));
+    out = [groupEl("🔁 매일 하는 일", pDaily, { hideProject: true }), ...byDate(pShown, { hideProject: true, desc: true })];
+    if (!pShown.length && !pDaily.length) out = [emptyEl("이 프로젝트에 남은 할 일이 없어요")];
     if (pDone.length) {
       out.push(h("button", { class: "btn ghost toggle-done", onclick: () => { S.showDoneInProject = !S.showDoneInProject; render(); } },
-        (S.showDoneInProject ? "▾ 완료 숨기기" : "▸ 완료한 일 보기") + ` (${pDone.length})`));
+        (S.showDoneInProject ? "▾ 지난 완료 숨기기" : "▸ 지난 완료 보기") + ` (${pDone.length})`));
       if (S.showDoneInProject) out.push(groupEl("완료", pDone.sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")), { hideProject: true }));
     }
   }
@@ -540,21 +727,194 @@ let editing = null;
 function openTodo(t) {
   editing = t;
   $("tTitle").value = t.title; $("tDate").value = t.due_date || ""; $("tMemo").value = t.memo || "";
+  $("tDaily").checked = !!t.daily;
   const sel = $("tProject");
   setKids(sel, h("option", { value: "" }, "프로젝트 없음"), S.projects.map((p) => h("option", { value: p.id }, p.name)));
   sel.value = t.project_id || "";
+  syncDailyDlg();
   $("todoDlg").showModal();
 }
+// '매일 하는 일'이면 날짜칸 이름을 '시작일'로, '완료(종결)' 버튼 표시
+function syncDailyDlg() {
+  const daily = $("tDaily").checked && editing.daily;   // 종결 버튼은 이미 저장된 매일 하는 일에만
+  $("tDateLabel").textContent = $("tDaily").checked ? "시작일" : "날짜";
+  $("tClose").classList.toggle("hidden", !daily);
+  $("tClose").textContent = editing.done ? "다시 진행" : "완료";
+}
+$("tDaily").onchange = syncDailyDlg;
 $("tCancel").onclick = () => $("todoDlg").close();
 $("todoForm").onsubmit = (e) => {
   e.preventDefault();
   const title = $("tTitle").value.trim(); if (!title) return;
-  patchTodo(editing.id, { title, due_date: $("tDate").value || null, project_id: $("tProject").value || null, memo: $("tMemo").value });
+  const daily = $("tDaily").checked;
+  patchTodo(editing.id, { title, daily, due_date: $("tDate").value || (daily ? today() : null), project_id: $("tProject").value || null, memo: $("tMemo").value });
+  $("todoDlg").close();
+};
+// 완료 = 종결 (오늘까지만 표시, 내일부터 안 나옴) / 종결된 일이면 '다시 진행'
+$("tClose").onclick = () => {
+  const t = editing;
+  if (t.done) patchTodo(t.id, { done: false, done_at: null });
+  else {
+    if (!confirm(`'${t.title}'을(를) 종결할까요?\n오늘까지만 표시되고 내일부터는 나오지 않아요.`)) return;
+    patchTodo(t.id, { done: true, done_at: new Date().toISOString() });
+  }
   $("todoDlg").close();
 };
 $("tDelete").onclick = () => {
   if (!confirm("이 할 일을 삭제할까요?")) return;
   deleteTodo(editing.id); $("todoDlg").close();
+};
+
+/* ================= 날씨 (넓은 화면에서만) =================
+   - 날씨/미세먼지: Open-Meteo (무료, 키 필요 없음)
+   - 위치: 브라우저 위치 권한 → 거절하면 서울. 위치 이름은 BigDataCloud(무료)로 변환
+   - 30분마다 새로 불러옴. 화면이 좁으면(모바일 등) 아예 불러오지 않음 */
+const WX_WIDE = window.matchMedia("(min-width:1280px)");
+const WX_DEFAULT = { lat: 37.5665, lon: 126.978, name: "서울 (기본 위치)" };
+const WX_CODES = {
+  0: ["맑음", "☀️"], 1: ["대체로 맑음", "🌤️"], 2: ["구름 조금", "⛅"], 3: ["흐림", "☁️"], 45: ["안개", "🌫️"], 48: ["안개", "🌫️"],
+  51: ["약한 이슬비", "🌦️"], 53: ["이슬비", "🌦️"], 55: ["강한 이슬비", "🌧️"], 56: ["어는 이슬비", "🌧️"], 57: ["어는 이슬비", "🌧️"],
+  61: ["약한 비", "🌧️"], 63: ["비", "🌧️"], 65: ["강한 비", "🌧️"], 66: ["어는 비", "🌧️"], 67: ["어는 비", "🌧️"],
+  71: ["약한 눈", "🌨️"], 73: ["눈", "🌨️"], 75: ["강한 눈", "❄️"], 77: ["싸락눈", "🌨️"],
+  80: ["약한 소나기", "🌦️"], 81: ["소나기", "🌦️"], 82: ["강한 소나기", "⛈️"], 85: ["눈 소나기", "🌨️"], 86: ["강한 눈 소나기", "❄️"],
+  95: ["뇌우", "⛈️"], 96: ["우박 동반 뇌우", "⛈️"], 99: ["우박 동반 뇌우", "⛈️"],
+};
+const wxCode = (c, day = 1) => { const [t, e] = WX_CODES[c] || ["알 수 없음", "🌡️"]; return [t, !day && c <= 1 ? "🌙" : e]; };
+// 미세먼지 등급 (환경부 기준): cut = [좋음 상한, 보통 상한, 나쁨 상한]
+function pmGrade(v, cut) { let i = cut.findIndex((x) => v <= x); if (i < 0) i = 3; return [["좋음", "보통", "나쁨", "매우 나쁨"][i], "g" + (i + 1)]; }
+let wxPos = null, wxStarted = false;
+function wxStart() {
+  if (wxStarted || !WX_WIDE.matches) return;
+  wxStarted = true;
+  try { const p = JSON.parse(localStorage.getItem("todo.wxpos")); if (p && p.lat) wxPos = p; } catch (e) {}
+  wxLoad();
+  wxLocate(false);
+  setInterval(wxLoad, 30 * 60000);
+}
+WX_WIDE.addEventListener("change", () => { if (S.user) wxStart(); });   // 창을 넓히면 그때 시작
+function wxLocate(manual) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = +pos.coords.latitude.toFixed(3), lon = +pos.coords.longitude.toFixed(3);
+    let name = "현재 위치";
+    try {
+      const r = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ko`)).json();
+      name = [...new Set([r.city || r.principalSubdivision, r.locality].filter(Boolean))].join(" ") || name;
+    } catch (e) {}
+    const changed = !wxPos || wxPos.lat !== lat || wxPos.lon !== lon || wxPos.name !== name;
+    wxPos = { lat, lon, name };
+    try { localStorage.setItem("todo.wxpos", JSON.stringify(wxPos)); } catch (e) {}
+    if (changed || manual) wxLoad();
+  }, () => { if (manual) toast("위치 권한이 없어서 기본 위치(서울)를 써요."); }, { timeout: 10000, maximumAge: 30 * 60000 });
+}
+async function wxLoad() {
+  const p = wxPos || WX_DEFAULT;
+  try {
+    const base = `latitude=${p.lat}&longitude=${p.lon}&timezone=auto`;
+    const [f, a] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${base}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`
+        + `&hourly=temperature_2m,weather_code,precipitation_probability,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+        + `&forecast_days=6&wind_speed_unit=ms`).then((r) => r.json()),
+      fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${base}&current=pm10,pm2_5`).then((r) => r.json()).catch(() => null),
+    ]);
+    if (!f.current) throw new Error(f.reason || "응답 오류");
+    renderWx(p, f, a);
+  } catch (e) {
+    setKids($("wx"), h("div", { class: "wxcard wxerr" }, "날씨를 불러오지 못했어요", h("button", { class: "btn ghost", onclick: wxLoad }, "다시 시도")));
+  }
+}
+function renderWx(p, f, a) {
+  const c = f.current, d = f.daily, hr = f.hourly, [desc, emo] = wxCode(c.weather_code, c.is_day);
+  const r = (x) => Math.round(x) + "°", pop = (x) => (x ?? 0) + "%";
+  // 시간별: 지금 이후 24시간을 3시간 간격으로 8칸
+  let i0 = hr.time.findIndex((t) => t.slice(0, 13) >= c.time.slice(0, 13)); if (i0 < 0) i0 = 0;
+  const hours = []; for (let i = i0 + 1; i < i0 + 25 && i < hr.time.length; i += 3) hours.push(i);
+  const wd = (s) => { const [y, m, dd] = s.split("-").map(Number); return "일월화수목금토"[new Date(y, m - 1, dd).getDay()]; };
+  const now = new Date();
+  const air = a && a.current ? [["미세먼지", a.current.pm10, [30, 80, 150]], ["초미세먼지", a.current.pm2_5, [15, 35, 75]]] : [];
+  setKids($("wx"),
+    h("div", { class: "wxcard" },
+      h("div", { class: "wxloc" },
+        h("button", { class: "link", title: "현재 위치로 다시 찾기", onclick: () => wxLocate(true) }, "📍 " + p.name),
+        h("span", {}, `${pad(now.getHours())}:${pad(now.getMinutes())} 기준`)),
+      h("div", { class: "wxnow" }, h("span", { class: "wxemo" }, emo), h("span", { class: "wxtemp" }, r(c.temperature_2m))),
+      h("div", { class: "wxdesc" }, desc),
+      h("div", { class: "wxsub" }, `체감 ${r(c.apparent_temperature)} · 최고 ${r(d.temperature_2m_max[0])} / 최저 ${r(d.temperature_2m_min[0])}`),
+      h("div", { class: "wxstats" },
+        h("div", {}, h("b", {}, c.relative_humidity_2m + "%"), "습도"),
+        h("div", {}, h("b", {}, c.wind_speed_10m.toFixed(1) + "m/s"), "바람"),
+        h("div", {}, h("b", {}, pop(d.precipitation_probability_max[0])), "강수확률"))),
+    air.length ? h("div", { class: "wxcard wxair" }, air.map(([label, v, cut]) => {
+      const [g, cls] = pmGrade(v, cut);
+      return h("div", {}, label, h("b", { class: cls }, g), h("small", {}, Math.round(v) + "㎍/㎥"));
+    })) : null,
+    h("div", { class: "wxcard" }, h("div", { class: "wxh" }, "시간별"),
+      h("div", { class: "wxhours" }, hours.map((i) => h("div", {},
+        h("small", {}, +hr.time[i].slice(11, 13) + "시"), h("span", {}, wxCode(hr.weather_code[i], hr.is_day[i])[1]),
+        h("b", {}, r(hr.temperature_2m[i])), h("small", { class: "wxpop" }, pop(hr.precipitation_probability[i])))))),
+    h("div", { class: "wxcard" }, h("div", { class: "wxh" }, "주간 예보"),
+      d.time.slice(1, 6).map((t, k) => h("div", { class: "wxday" },
+        h("span", {}, k === 0 ? "내일" : wd(t)), h("span", {}, wxCode(d.weather_code[k + 1])[1]),
+        h("small", { class: "wxpop" }, pop(d.precipitation_probability_max[k + 1])),
+        h("span", {}, h("span", { class: "lo" }, r(d.temperature_2m_min[k + 1])), " / ", h("b", {}, r(d.temperature_2m_max[k + 1])))))),
+    h("div", { class: "wxsrc" }, "날씨·미세먼지: Open-Meteo"));
+}
+
+/* ================= 다이얼로그: 꿀팁 메모 ================= */
+let editingNote = null;
+// 저장된 메모는 보기 모드로, 새 메모는 바로 수정 모드로 열기
+function openNote(n) {
+  editingNote = n;
+  $("nDelete").classList.toggle("hidden", !n);
+  noteMode(n ? "view" : "edit");
+  $("noteDlg").showModal();
+}
+function noteMode(mode) {
+  const n = editingNote, view = mode === "view";
+  $("nView").classList.toggle("hidden", !view);
+  $("nEdit").classList.toggle("hidden", view);
+  $("nEditBtn").classList.toggle("hidden", !view);
+  $("nSave").classList.toggle("hidden", view);
+  $("nCancel").textContent = view ? "닫기" : "취소";
+  if (view) {
+    $("nViewTitle").textContent = n.title || "제목 없음";
+    $("nViewBody").textContent = n.body || "(내용 없음)";
+    $("nEditBtn").focus();
+  } else {
+    $("nDlgTitle").textContent = n ? "메모 수정" : "새 메모";
+    $("nTitle").value = n ? n.title : ""; $("nBody").value = n ? n.body : "";
+    (n ? $("nBody") : $("nTitle")).focus();
+  }
+}
+$("nEditBtn").onclick = () => noteMode("edit");
+// 수정 중 취소 → 저장된 메모면 보기 모드로 돌아감, 새 메모면 닫기
+$("nCancel").onclick = () => (editingNote && !$("nEdit").classList.contains("hidden") ? noteMode("view") : $("noteDlg").close());
+$("noteForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const title = $("nTitle").value.trim(), body = $("nBody").value;
+  $("noteDlg").close();
+  if (!title && !body.trim()) return;   // 빈 메모는 저장 안 함
+  const row = { title, body, updated_at: new Date().toISOString() };
+  if (editingNote) {
+    const { error } = await sb.from("notes").update(row).eq("id", editingNote.id);
+    if (error) return toast("저장 실패: " + error.message);
+    Object.assign(editingNote, row);
+  } else {
+    const { data, error } = await sb.from("notes").insert(row).select().single();
+    if (error) return toast("추가 실패: " + error.message);
+    S.notes.push(data);
+  }
+  S.notes.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  render();
+};
+$("nDelete").onclick = async () => {
+  const n = editingNote;
+  if (!confirm(`'${n.title || "제목 없음"}' 메모를 삭제할까요?`)) return;
+  $("noteDlg").close();
+  const { error } = await sb.from("notes").delete().eq("id", n.id);
+  if (error) return toast("삭제 실패: " + error.message);
+  S.notes = S.notes.filter((x) => x !== n);
+  render();
 };
 
 /* ================= 다이얼로그: 프로젝트 ================= */
@@ -600,8 +960,10 @@ $("pDelete").onclick = async () => {
 };
 
 /* ================= 날짜 바뀜 처리 / PWA ================= */
-let lastDay = today();
-setInterval(() => { if (today() !== lastDay) { lastDay = today(); render(); } }, 60000);
+// 1분마다 확인해서 날짜가 바뀌거나 아침 8시가 되면 화면 다시 그림
+const dayKey = () => today() + "|" + dailyDay();
+let lastDay = dayKey();
+setInterval(() => { if (dayKey() !== lastDay) { lastDay = dayKey(); render(); } }, 60000);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
