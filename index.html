@@ -11,17 +11,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="할 일">
 <style>
+/* 기본: 다크 모드 */
 :root{
+  color-scheme:dark;
+  --bg:#111318; --panel:#1a1d24; --text:#e7e9ee; --muted:#9aa1ad; --line:#2a2f39;
+  --accent:#6f8fff; --accent-soft:#232c48; --danger:#ff6b6b; --danger-soft:#3a2224;
+  --ok:#4cc38a; --radius:10px; --shadow:none;
+}
+/* 라이트 모드: <html data-theme="light"> 일 때만 (나중에 전환 버튼용으로 남겨둠) */
+:root[data-theme="light"]{
+  color-scheme:light;
   --bg:#f5f6f8; --panel:#ffffff; --text:#1c1f24; --muted:#6b7280; --line:#e4e7ec;
   --accent:#2f5bea; --accent-soft:#e8eefe; --danger:#d93b3b; --danger-soft:#fdecec;
-  --ok:#1f9d55; --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    --bg:#111318; --panel:#1a1d24; --text:#e7e9ee; --muted:#9aa1ad; --line:#2a2f39;
-    --accent:#6f8fff; --accent-soft:#232c48; --danger:#ff6b6b; --danger-soft:#3a2224;
-    --ok:#4cc38a; --shadow:none;
-  }
+  --ok:#1f9d55; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -121,6 +123,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .colors button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
 .colors button.on{border-color:var(--text)}
 
+.ver{position:fixed;right:12px;bottom:8px;font-size:22px;color:var(--muted);opacity:.7;pointer-events:none;z-index:5}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:calc(100% - 32px)}
 
 /* ---------- mobile ---------- */
@@ -135,11 +138,14 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   .main{padding:16px 16px 80px}
   .head h2{font-size:19px}
   .addbar .title{flex-basis:100%}
+  .ver{display:none}
 }
 .mobile-only{display:none}
 </style>
 </head>
 <body>
+<!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
+<div class="ver">v1.0</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
