@@ -77,7 +77,9 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
 .navbtn.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
 .navbtn.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
 .head .hicon{font-size:22px;line-height:1}
-.side .who{font-size:12px;color:var(--muted);padding:8px 10px;word-break:break-all}
+.search{margin:0 0 14px;background:var(--panel)}
+.search-info{font-size:13px;color:var(--muted);margin:0 0 12px}
+mark{background:#f5a524;color:#111318;border-radius:3px;padding:0 2px}.side .who{font-size:12px;color:var(--muted);padding:8px 10px;word-break:break-all}
 
 .main{padding:24px 32px 80px;max-width:860px;width:100%}
 .head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
@@ -97,7 +99,7 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
 
 /* list */
 .group{margin-bottom:22px}
-.group h4{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.group h4{margin:0 0 8px;font-size:18px;font-weight:700;color:var(--text);display:flex;gap:8px;align-items:baseline}
 .group h4 .n{font-size:13px;font-weight:400}
 .group.overdue h4{color:var(--danger)}
 .group.today h4{color:var(--accent)}
@@ -115,7 +117,7 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
 .item.done .check::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
 .ibody{flex:1;min-width:0;cursor:pointer}
 .ititle{word-break:break-word}
-.item.done .ititle{color:var(--muted);text-decoration:line-through}
+.item.done .ititle{color:var(--muted)}   /* 완료: ✅ 체크 + 흐린 글씨 (취소선 없음) */
 .imeta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted);margin-top:2px}
 .imeta .late{color:var(--danger)}
 .pchip{display:inline-flex;align-items:center;gap:4px}
@@ -216,7 +218,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
-<div class="ver">v1.1</div>
+<div class="ver">v1.2</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
@@ -244,6 +246,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <nav class="side" id="side"></nav>
   <main class="main">
     <div class="head" id="head"></div>
+    <!-- 찾기: 주간·프로젝트 화면에서만 보임. 화면을 다시 그려도 입력칸은 그대로라 글자 입력이 끊기지 않음 -->
+    <input class="input search hidden" id="search" type="search" placeholder="🔍 찾기 (제목·메모, 전체 기간)" autocomplete="off">
     <form class="addbar" id="addForm" autocomplete="off">
       <input class="title" id="addTitle" placeholder="할 일 추가… (Enter)" required>
       <div class="quick" id="quick"></div>
@@ -431,6 +435,7 @@ const S = {
   view: "today",          // today(오늘) | week(주간) | repeat(반복) | tips(꿀팁) | p:<id>  (접속하면 항상 오늘)
   weekOffset: 0,          // 0 = 이번 주, -1 = 지난주, 1 = 다음 주 …
   showDoneInProject: false,
+  search: "",             // 찾기 입력 (주간·프로젝트 화면)
   quickDate: "today",     // today | tomorrow | none | custom
   addRepeat: null,        // 추가줄의 반복 설정 {unit, every, count, until} 또는 null
 };
@@ -491,12 +496,23 @@ async function onSession(session) {
 }
 
 /* ================= 데이터 ================= */
+// Supabase는 한 번에 최대 1000줄까지만 돌려줌 → 1000줄씩 나눠서 끝까지 받기
+async function fetchAll(make) {
+  let all = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await make().range(from, from + 999);
+    if (error) return { error };
+    all = all.concat(data);
+    if (data.length < 1000) return { data: all };
+  }
+}
 async function loadAll() {
   const [p, open, done, ck, nt] = await Promise.all([
     sb.from("projects").select("*").order("sort_order").order("created_at"),   // 사용자가 정한 순서
-    sb.from("todos").select("*").eq("done", false),
-    sb.from("todos").select("*").eq("done", true).order("done_at", { ascending: false }).limit(500),
-    sb.from("todo_checks").select("todo_id,day").gte("day", addDays(today(), -180)),   // 최근 180일 체크 기록
+    fetchAll(() => sb.from("todos").select("*").eq("done", false).order("id")),
+    // 완료한 일 전부 (예전엔 최근 500개만 → 가져온 지난 기록이 잘려서 주간·찾기에서 안 보였음)
+    fetchAll(() => sb.from("todos").select("*").eq("done", true).order("done_at", { ascending: false }).order("id")),
+    fetchAll(() => sb.from("todo_checks").select("todo_id,day").gte("day", addDays(today(), -400)).order("day").order("todo_id")),   // 최근 400일 체크 기록
     sb.from("notes").select("*").order("updated_at", { ascending: false }),
   ]);
   S.notes = nt.error ? [] : nt.data; S.notesErr = nt.error ? nt.error.message : "";
@@ -504,7 +520,8 @@ async function loadAll() {
   if (err) { toast("불러오기 실패: " + err.message); return; }
   S.projects = p.data;
   S.todos = [...open.data, ...done.data];
-  S.checks = new Set(ck.data.map((c) => ckKey(c.todo_id, c.day)));  if (S.view.startsWith("p:") && !projById(S.view.slice(2))) S.view = "today";
+  S.checks = new Set(ck.data.map((c) => ckKey(c.todo_id, c.day)));
+  if (S.view.startsWith("p:") && !projById(S.view.slice(2))) S.view = "today";
   render();
 }
 // 다른 기기에서 바꾼 내용 반영: 탭으로 돌아올 때 새로고침
@@ -726,6 +743,9 @@ function renderHead() {
   const changed = S.lastHeadView !== v;
   const cur = v.startsWith("p:") ? v.slice(2) : (changed ? "" : sel.value);
   S.lastHeadView = v;
+  // 찾기 칸: 주간·프로젝트에서만. 다른 화면으로 넘어가면 지움
+  $("search").classList.toggle("hidden", !(v === "week" || v.startsWith("p:")));
+  if (changed) { S.search = ""; $("search").value = ""; }
   setKids(sel, h("option", { value: "" }, "프로젝트 없음"), S.projects.map((p) => h("option", { value: p.id }, p.name)));
   sel.value = projById(cur) ? cur : "";
   // 날짜 기본값은 화면을 바꿨을 때만 초기화 (추가할 때마다 '오늘'로 되돌아가지 않게)
@@ -746,6 +766,8 @@ function renderQuick() {
   $("quick").replaceChildren(chip("today", "오늘"), chip("tomorrow", "내일"), repChip);
 }
 // 날짜를 직접 고르면 '오늘/내일' 선택 해제
+// 찾기: 글자를 칠 때마다 목록만 다시 그림 (입력칸은 그대로 → 커서 유지)
+$("search").oninput = (e) => { S.search = e.target.value; renderContent(); };
 $("addDate").oninput = () => { S.quickDate = "custom"; renderQuick(); };
 $("addForm").onsubmit = (e) => {
   e.preventDefault();
@@ -772,6 +794,19 @@ const visible = (x) => !rUnit(x) && (!x.done || doneOn(x) === today());   // 반
 const liveRepeat = (x) => !!rUnit(x) && rStart(x) <= dailyDay() && (!repEnd(x) || repEnd(x) >= today());
 // 아직 시작 전인 반복 (시작일 아침 8시 전) → 오늘/프로젝트 화면 맨 아래 '시작 예정'에서 보고 수정
 const upcomingRepeat = (x) => !!rUnit(x) && !x.done && rStart(x) > dailyDay();
+// 찾기 하이라이트: 글자 중 찾는 부분만 <mark>로 감싸서 돌려줌 (대소문자 무시). 글자는 textContent로만 들어감
+function hl(text, q) {
+  if (!q) return text;
+  const out = [], low = text.toLowerCase();
+  let i = 0, j;
+  while ((j = low.indexOf(q, i)) >= 0) {
+    if (j > i) out.push(text.slice(i, j));
+    out.push(h("mark", {}, text.slice(j, j + q.length)));
+    i = j + q.length;
+  }
+  out.push(text.slice(i));
+  return out;
+}
 function itemEl(t, opts = {}) {
   const p = projById(t.project_id), rep = !!rUnit(t); const late = !rep && !t.done && t.due_date && t.due_date < today();
   const missed = rep && opts.missed ? missedOcc(t, true) : null;   // 밀린 일에 넘어온 반복이면 놓친 날짜
@@ -779,19 +814,19 @@ function itemEl(t, opts = {}) {
   return h("li", { class: "item" + (done ? " done" : "") },
     h("button", { class: "check", "aria-label": done ? "완료 취소" : "완료", onclick: () => (rep ? toggleCheck(t, day, opts.missed) : toggleDone(t, opts.missed)) }),
     h("div", { class: "ibody", onclick: () => openTodo(t) },
-      h("div", { class: "ititle" }, t.title),
+      h("div", { class: "ititle" }, hl(t.title, opts.hl)),
       h("div", { class: "imeta" },
         !opts.hideProject && p ? h("span", { class: "pchip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null,
         missed ? h("span", { class: "late", title: "이 날짜 반복을 체크 못 함" }, `📅 ${shortDate(missed)}`) : null,
         rep ? h("span", { class: "daily" }, `🔁 ${repeatText(repOf(t))} · ${shortDate(rStart(t))}부터` + (t.done ? ` · ${shortDate(doneOn(t))} 종결` : "")) : null,
         !rep && !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
       ),
-      t.memo ? h("div", { class: "imemo" }, t.memo) : null,
+      t.memo ? h("div", { class: "imemo" }, hl(t.memo, opts.hl)) : null,
     ));
 }
 function groupEl(title, items, opts = {}) {
   if (!items.length) return null;
-  items.sort(sortTodos);
+  items.sort(opts.order || sortTodos);   // opts.order: 다른 정렬이 필요할 때 (예: 지난 완료 = 최근 날짜 위)
   const o = { ...opts, hideProject: true };   // 프로젝트는 서브그룹 제목으로 보여주므로 항목에서는 숨김
   let body;
   if (opts.hideProject) body = h("ul", { class: "list" }, items.map((t) => itemEl(t, o)));
@@ -820,6 +855,16 @@ function renderContent() {
   const v = S.view, t0 = today(), box = $("content");
   const shown = S.todos.filter(visible);
   let out = [];
+  // 찾기: 주간은 전체 할 일, 프로젝트는 그 프로젝트 할 일에서 제목·메모에 글자가 들어간 것 (전체 기간, 최근 날짜가 위)
+  const qy = S.search.trim().toLowerCase();
+  if (qy && (v === "week" || v.startsWith("p:"))) {
+    const pool = v === "week" ? S.todos : S.todos.filter((x) => x.project_id === v.slice(2));
+    const hits = pool.filter((x) => (x.title + "\n" + (x.memo || "")).toLowerCase().includes(qy));
+    out = [h("div", { class: "search-info" }, `🔍 '${S.search.trim()}' 검색 결과 ${hits.length}개`),
+      ...(hits.length ? byDate(hits, { desc: true, hideProject: v !== "week", hl: qy }) : [emptyEl("찾는 할 일이 없어요")])];
+    box.replaceChildren(...out.filter(Boolean));
+    return;
+  }
   if (v === "week") {
     const { s, e } = curWeek();
     const inWeek = (d) => d && d >= s && d <= e;
@@ -869,7 +914,8 @@ function renderContent() {
     if (pDone.length) {
       out.push(h("button", { class: "btn ghost toggle-done", onclick: () => { S.showDoneInProject = !S.showDoneInProject; render(); } },
         (S.showDoneInProject ? "▾ 지난 완료 숨기기" : "▸ 지난 완료 보기") + ` (${pDone.length})`));
-      if (S.showDoneInProject) out.push(groupEl("완료", pDone.sort((a, b) => (b.done_at || "").localeCompare(a.done_at || "")), { hideProject: true }));
+      // 최근 날짜가 위 (같은 날짜 안에서는 추가한 순서)
+      if (S.showDoneInProject) out.push(groupEl("완료", pDone, { hideProject: true, order: (a, b) => (b.due_date || "").localeCompare(a.due_date || "") || sortTodos(a, b) }));
     }
   }
   box.replaceChildren(...out.filter(Boolean));
