@@ -1195,7 +1195,8 @@ $("projForm").onsubmit = async (e) => {
     const sort_order = S.projects.reduce((m, p) => Math.max(m, p.sort_order ?? 0), -1) + 1;
     const { data, error } = await sb.from("projects").insert({ name, color: projColor, sort_order }).select().single();
     if (error) return toast("추가 실패: " + error.message);
-    S.projects.push(data); S.view = "p:" + data.id;
+    S.projects.push(data);   // 지금 보던 화면 그대로 유지 (새 프로젝트 화면으로 이동하지 않음)
+    toast(`'${name}' 프로젝트를 만들었어요`);
   }
   render();
 };
