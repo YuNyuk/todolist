@@ -192,6 +192,11 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .rsum{font-size:14px;color:var(--accent);font-weight:700;margin-top:4px}
 .btn.ok{color:var(--ok);border-color:var(--ok)}
 .imeta .daily{color:var(--accent)}
+/* 반복하는 일: 제목 · 반복 표시 · 공통 메모를 한 줄에 (폭이 좁으면 자연스럽게 다음 줄로) */
+.irow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px}
+.irow .imeta,.irow .imemo{display:inline-flex;margin:0}
+.idaynote{font-size:14px;color:var(--text);margin-top:4px;white-space:pre-wrap;word-break:break-word}
+.item.done .idaynote{color:var(--muted)}
 .colors{display:flex;gap:8px;flex-wrap:wrap}
 .colors button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
 .colors button.on{border-color:var(--text)}
@@ -218,7 +223,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
-<div class="ver">v1.2</div>
+<div class="ver">v1.3</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
@@ -265,6 +270,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 <dialog id="todoDlg">
   <form class="dlg" method="dialog" id="todoForm">
     <h3>할 일 수정</h3>
+    <!-- 반복하는 일을 날짜 칸에서 눌렀을 때만 보임: 그 날 한 일 -->
+    <label class="field hidden" id="tDayNoteBox"><span id="tDayNoteLbl">📝 한 일</span><textarea class="input" id="tDayNote" placeholder="이 날 한 일을 적어두세요 (주간보고용)" style="min-height:60px"></textarea></label>
     <label class="field"><span>제목</span><input class="input" id="tTitle" required></label>
     <div class="row">
       <label class="field"><span id="tDateLabel">날짜</span><input class="input" type="date" id="tDate"></label>
@@ -432,6 +439,7 @@ const S = {
   checks: new Set(),      // 반복하는 일의 날짜별 체크: "할일id|YYYY-MM-DD"
   notes: [],              // 꿀팁 메모 (최근 수정순)
   notesErr: "",           // 메모 불러오기 실패 메시지 (실패해도 할 일 기능은 그대로 동작)
+  dayNotes: new Map(),    // 반복하는 일의 날짜별 '한 일' 메모: "할일id|YYYY-MM-DD" → 내용
   view: "today",          // today(오늘) | week(주간) | repeat(반복) | tips(꿀팁) | p:<id>  (접속하면 항상 오늘)
   weekOffset: 0,          // 0 = 이번 주, -1 = 지난주, 1 = 다음 주 …
   showDoneInProject: false,
@@ -507,15 +515,18 @@ async function fetchAll(make) {
   }
 }
 async function loadAll() {
-  const [p, open, done, ck, nt] = await Promise.all([
+  const [p, open, done, ck, nt, dn] = await Promise.all([
     sb.from("projects").select("*").order("sort_order").order("created_at"),   // 사용자가 정한 순서
     fetchAll(() => sb.from("todos").select("*").eq("done", false).order("id")),
     // 완료한 일 전부 (예전엔 최근 500개만 → 가져온 지난 기록이 잘려서 주간·찾기에서 안 보였음)
     fetchAll(() => sb.from("todos").select("*").eq("done", true).order("done_at", { ascending: false }).order("id")),
     fetchAll(() => sb.from("todo_checks").select("todo_id,day").gte("day", addDays(today(), -400)).order("day").order("todo_id")),   // 최근 400일 체크 기록
     sb.from("notes").select("*").order("updated_at", { ascending: false }),
+    fetchAll(() => sb.from("todo_day_notes").select("todo_id,day,note").order("day").order("todo_id")),
   ]);
   S.notes = nt.error ? [] : nt.data; S.notesErr = nt.error ? nt.error.message : "";
+  // 날짜별 메모: 못 불러와도(표가 아직 없어도) 할 일 기능은 그대로 동작
+  S.dayNotes = new Map(dn.error ? [] : dn.data.map((r) => [ckKey(r.todo_id, r.day), r.note]));
   const err = p.error || open.error || done.error || ck.error;
   if (err) { toast("불러오기 실패: " + err.message); return; }
   S.projects = p.data;
@@ -811,18 +822,32 @@ function itemEl(t, opts = {}) {
   const p = projById(t.project_id), rep = !!rUnit(t); const late = !rep && !t.done && t.due_date && t.due_date < today();
   const missed = rep && opts.missed ? missedOcc(t, true) : null;   // 밀린 일에 넘어온 반복이면 놓친 날짜
   const day = missed || opts.day || today(), done = isChecked(t, day);   // 반복하는 일은 그 날짜(day)의 체크 상태
+  const meta = [
+    !opts.hideProject && p ? h("span", { class: "pchip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null,
+    missed ? h("span", { class: "late", title: "이 날짜 반복을 체크 못 함" }, `📅 ${shortDate(missed)}`) : null,
+    rep ? h("span", { class: "daily" }, `🔁 ${repeatText(repOf(t))} · ${shortDate(rStart(t))}부터` + (t.done ? ` · ${shortDate(doneOn(t))} 종결` : "")) : null,
+    !rep && !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
+  ];
+  // 반복하는 일: [제목  공통 메모  🔁 매일 · 11/5부터] 한 줄 + 바로 아래 📝 그날 한 일
+  // 일반 할 일: 제목 / 날짜·프로젝트 / 메모 세 줄 (지금처럼)
+  const body = rep
+    ? [h("div", { class: "irow" }, h("span", { class: "ititle" }, hl(t.title, opts.hl)),
+         t.memo ? h("span", { class: "imemo" }, hl(t.memo, opts.hl)) : null, h("span", { class: "imeta" }, meta)),
+       dayNotesEl(t, day, opts.hl)]
+    : [h("div", { class: "ititle" }, hl(t.title, opts.hl)), h("div", { class: "imeta" }, meta),
+       t.memo ? h("div", { class: "imemo" }, hl(t.memo, opts.hl)) : null];
   return h("li", { class: "item" + (done ? " done" : "") },
     h("button", { class: "check", "aria-label": done ? "완료 취소" : "완료", onclick: () => (rep ? toggleCheck(t, day, opts.missed) : toggleDone(t, opts.missed)) }),
-    h("div", { class: "ibody", onclick: () => openTodo(t) },
-      h("div", { class: "ititle" }, hl(t.title, opts.hl)),
-      h("div", { class: "imeta" },
-        !opts.hideProject && p ? h("span", { class: "pchip" }, h("span", { class: "dot", style: `background:${p.color}` }), p.name) : null,
-        missed ? h("span", { class: "late", title: "이 날짜 반복을 체크 못 함" }, `📅 ${shortDate(missed)}`) : null,
-        rep ? h("span", { class: "daily" }, `🔁 ${repeatText(repOf(t))} · ${shortDate(rStart(t))}부터` + (t.done ? ` · ${shortDate(doneOn(t))} 종결` : "")) : null,
-        !rep && !opts.hideDate && t.due_date ? h("span", { class: late ? "late" : "" }, "📅 " + shortDate(t.due_date)) : null,
-      ),
-      t.memo ? h("div", { class: "imemo" }, hl(t.memo, opts.hl)) : null,
-    ));
+    h("div", { class: "ibody", onclick: () => openTodo(t, rep ? day : null) }, body));
+}
+// 📝 그날 한 일. 찾기 중이면 찾는 글자가 들어간 날짜 메모를 날짜와 함께 전부 보여줌
+function dayNotesEl(t, day, q) {
+  if (q) {
+    const hits = [...S.dayNotes].filter(([k, v]) => k.startsWith(t.id + "|") && v.toLowerCase().includes(q)).sort((a, b) => b[0].localeCompare(a[0]));
+    if (hits.length) return hits.map(([k, v]) => h("div", { class: "idaynote" }, `📝 ${shortDate(k.split("|")[1])} · `, hl(v, q)));
+  }
+  const note = S.dayNotes.get(ckKey(t.id, day));
+  return note ? h("div", { class: "idaynote" }, "📝 ", hl(note, q)) : null;
 }
 function groupEl(title, items, opts = {}) {
   if (!items.length) return null;
@@ -859,7 +884,9 @@ function renderContent() {
   const qy = S.search.trim().toLowerCase();
   if (qy && (v === "week" || v.startsWith("p:"))) {
     const pool = v === "week" ? S.todos : S.todos.filter((x) => x.project_id === v.slice(2));
-    const hits = pool.filter((x) => (x.title + "\n" + (x.memo || "")).toLowerCase().includes(qy));
+    // 제목·메모 + 반복하는 일의 날짜별 '한 일' 메모까지 찾기
+    const dayText = (x) => [...S.dayNotes].filter(([k]) => k.startsWith(x.id + "|")).map(([, v]) => v).join("\n");
+    const hits = pool.filter((x) => (x.title + "\n" + (x.memo || "") + "\n" + dayText(x)).toLowerCase().includes(qy));
     out = [h("div", { class: "search-info" }, `🔍 '${S.search.trim()}' 검색 결과 ${hits.length}개`),
       ...(hits.length ? byDate(hits, { desc: true, hideProject: v !== "week", hl: qy }) : [emptyEl("찾는 할 일이 없어요")])];
     box.replaceChildren(...out.filter(Boolean));
@@ -923,9 +950,16 @@ function renderContent() {
 function render() { if (!S.user) return; renderSide(); renderHead(); renderContent(); }
 
 /* ================= 다이얼로그: 할 일 ================= */
-let editing = null;
-function openTodo(t) {
+let editing = null, editingDay = null;
+// day: 반복하는 일을 어느 날짜 칸에서 눌렀는지 → 그 날짜의 '한 일' 메모 칸을 보여줌 (반복 날짜일 때만)
+function openTodo(t, day) {
   editing = t;
+  editingDay = rUnit(t) && day && isOcc(t, day) ? day : null;
+  $("tDayNoteBox").classList.toggle("hidden", !editingDay);
+  if (editingDay) {
+    $("tDayNoteLbl").textContent = `📝 ${fmtMD(editingDay)} 한 일`;
+    $("tDayNote").value = S.dayNotes.get(ckKey(t.id, editingDay)) || "";
+  }
   $("tTitle").value = t.title; $("tDate").value = t.due_date || ""; $("tMemo").value = t.memo || "";
   tRep = rUnit(t) ? repOf(t) : null;   // 수정창 안에서 바꾼 반복 설정 (저장 전까지 임시)
   const sel = $("tProject");
@@ -950,8 +984,20 @@ $("todoForm").onsubmit = (e) => {
   const title = $("tTitle").value.trim(); if (!title) return;
   // 날짜칸을 비우면 원래 날짜 유지 (날짜 없는 할 일은 만들지 않음)
   patchTodo(editing.id, { title, due_date: $("tDate").value || editing.due_date || today(), project_id: $("tProject").value || null, memo: $("tMemo").value, ...repRow(tRep) });
+  if (editingDay) saveDayNote(editing, editingDay, $("tDayNote").value.trim());
   $("todoDlg").close();
 };
+// 그날 한 일 저장: 내용이 있으면 저장(있으면 덮어쓰기), 비우면 지움. 바뀐 게 없으면 아무것도 안 함
+async function saveDayNote(t, day, note) {
+  const k = ckKey(t.id, day), old = S.dayNotes.get(k) || "";
+  if (note === old) return;
+  note ? S.dayNotes.set(k, note) : S.dayNotes.delete(k);
+  render();
+  const { error } = note
+    ? await sb.from("todo_day_notes").upsert({ todo_id: t.id, day, note, updated_at: new Date().toISOString() }, { onConflict: "todo_id,day" })
+    : await sb.from("todo_day_notes").delete().eq("todo_id", t.id).eq("day", day);
+  if (error) { old ? S.dayNotes.set(k, old) : S.dayNotes.delete(k); render(); toast("한 일 메모 저장 실패: " + error.message); }
+}
 
 /* ================= 다이얼로그: 반복 설정 =================
    openRepeat(현재설정 또는 null, 시작일, 확인했을 때 실행할 함수(설정 또는 null)) */

@@ -67,6 +67,25 @@ create policy "own todos" on public.todos
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
 
+-- 반복하는 일의 날짜별 '한 일' 메모
+create table if not exists public.todo_day_notes (
+  todo_id    uuid not null references public.todos(id) on delete cascade,
+  day        date not null,
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  note       text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (todo_id, day)
+);
+alter table public.todo_day_notes enable row level security;
+drop policy if exists "own day notes" on public.todo_day_notes;
+create policy "own day notes" on public.todo_day_notes
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (
+    user_id = (select auth.uid())
+    and exists (select 1 from public.todos t where t.id = todo_id and t.user_id = (select auth.uid()))
+  );
+
 -- 꿀팁 메모장
 create table if not exists public.notes (
   id         uuid primary key default gen_random_uuid(),
