@@ -195,7 +195,9 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 /* 반복하는 일: 제목 · 반복 표시 · 공통 메모를 한 줄에 (폭이 좁으면 자연스럽게 다음 줄로) */
 .irow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px}
 .irow .imeta,.irow .imemo{display:inline-flex;margin:0}
-.idaynote{font-size:14px;color:var(--text);margin-top:4px;white-space:pre-wrap;word-break:break-word}
+.idaynote{display:flex;gap:6px;font-size:14px;color:var(--text);margin-top:4px}
+.idaynote .dnhead{flex:none;white-space:nowrap}
+.idaynote .dntext{flex:1;min-width:0;white-space:pre-wrap;word-break:break-word}
 .item.done .idaynote{color:var(--muted)}
 .colors{display:flex;gap:8px;flex-wrap:wrap}
 .colors button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;padding:0}
@@ -223,7 +225,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
-<div class="ver">v1.3</div>
+<div class="ver">v1.31</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
@@ -844,10 +846,10 @@ function itemEl(t, opts = {}) {
 function dayNotesEl(t, day, q) {
   if (q) {
     const hits = [...S.dayNotes].filter(([k, v]) => k.startsWith(t.id + "|") && v.toLowerCase().includes(q)).sort((a, b) => b[0].localeCompare(a[0]));
-    if (hits.length) return hits.map(([k, v]) => h("div", { class: "idaynote" }, `📝 ${shortDate(k.split("|")[1])} · `, hl(v, q)));
+    if (hits.length) return hits.map(([k, v]) => h("div", { class: "idaynote" }, h("span", { class: "dnhead" }, `📝 ${shortDate(k.split("|")[1])} ·`), h("span", { class: "dntext" }, hl(v, q))));
   }
   const note = S.dayNotes.get(ckKey(t.id, day));
-  return note ? h("div", { class: "idaynote" }, "📝 ", hl(note, q)) : null;
+  return note ? h("div", { class: "idaynote" }, h("span", { class: "dnhead" }, "📝"), h("span", { class: "dntext" }, hl(note, q))) : null;
 }
 function groupEl(title, items, opts = {}) {
   if (!items.length) return null;
