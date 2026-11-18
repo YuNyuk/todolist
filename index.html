@@ -104,6 +104,14 @@ mark{background:#f5a524;color:#111318;border-radius:3px;padding:0 2px}.side .who
 .group.overdue h4{color:var(--danger)}
 .group.today h4{color:var(--accent)}
 .group.upcoming{opacity:.75}
+.group h4 .offtag{font-size:13px;font-weight:600;color:var(--danger)}
+.offlist{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
+.offlist li{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.offlist li.none{color:var(--muted);border:0}
+.field .offlist span{display:inline;margin:0;font-size:14px;color:inherit}
+.field .offlist .grow{flex:1;color:var(--muted)}
+.offlist button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px}
+.offlist button:hover{color:var(--danger)}
 .sgroup+.sgroup{margin-top:10px}
 .sgroup h5{margin:0 0 6px 4px;font-size:15px;font-weight:700;color:var(--text);display:flex;gap:8px;align-items:center}
 .sgroup h5 .dot{width:10px;height:10px}
@@ -225,7 +233,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
-<div class="ver">v1.31</div>
+<div class="ver">v1.4</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
@@ -361,6 +369,24 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   </form>
 </dialog>
 
+<!-- 휴가 설정 -->
+<dialog id="offDlg">
+  <form class="dlg" method="dialog" id="offForm">
+    <h3>🏖️ 휴가</h3>
+    <div class="field">
+      <span>날짜 (하루면 뒤 칸은 비워두기)</span>
+      <div class="rline"><input class="input rdate" type="date" id="oFrom" required> ~ <input class="input rdate" type="date" id="oTo"></div>
+    </div>
+    <label class="field"><span>메모 (선택)</span><input class="input" id="oNote" maxlength="30" placeholder="예: 연차, 반차, 여름휴가"></label>
+    <div class="field"><span>잡아둔 휴가 (오늘 이후)</span><ul class="offlist" id="oList"></ul></div>
+    <div class="foot">
+      <span class="grow"></span>
+      <button class="btn" type="button" id="oClose">닫기</button>
+      <button class="btn primary" type="submit">추가</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -442,6 +468,8 @@ const S = {
   notes: [],              // 꿀팁 메모 (최근 수정순)
   notesErr: "",           // 메모 불러오기 실패 메시지 (실패해도 할 일 기능은 그대로 동작)
   dayNotes: new Map(),    // 반복하는 일의 날짜별 '한 일' 메모: "할일id|YYYY-MM-DD" → 내용
+  daysOff: new Map(),     // 내가 정한 휴가: "YYYY-MM-DD" → 메모 (DB days_off)
+  holidays: new Map(),    // 한국 공휴일: "YYYY-MM-DD" → 이름 (Nager.Date API, 브라우저에 저장)
   view: "today",          // today(오늘) | week(주간) | repeat(반복) | tips(꿀팁) | p:<id>  (접속하면 항상 오늘)
   weekOffset: 0,          // 0 = 이번 주, -1 = 지난주, 1 = 다음 주 …
   showDoneInProject: false,
@@ -502,6 +530,7 @@ async function onSession(session) {
   $("auth").classList.add("hidden");
   $("app").classList.remove("hidden");
   wxStart();
+  loadHolidays();   // 기다리지 않음: 저장해 둔 공휴일로 먼저 그리고, 새로 받으면 다시 그림
   await loadAll();
 }
 
@@ -517,7 +546,7 @@ async function fetchAll(make) {
   }
 }
 async function loadAll() {
-  const [p, open, done, ck, nt, dn] = await Promise.all([
+  const [p, open, done, ck, nt, dn, off] = await Promise.all([
     sb.from("projects").select("*").order("sort_order").order("created_at"),   // 사용자가 정한 순서
     fetchAll(() => sb.from("todos").select("*").eq("done", false).order("id")),
     // 완료한 일 전부 (예전엔 최근 500개만 → 가져온 지난 기록이 잘려서 주간·찾기에서 안 보였음)
@@ -525,7 +554,10 @@ async function loadAll() {
     fetchAll(() => sb.from("todo_checks").select("todo_id,day").gte("day", addDays(today(), -400)).order("day").order("todo_id")),   // 최근 400일 체크 기록
     sb.from("notes").select("*").order("updated_at", { ascending: false }),
     fetchAll(() => sb.from("todo_day_notes").select("todo_id,day,note").order("day").order("todo_id")),
+    fetchAll(() => sb.from("days_off").select("day,note").order("day")),
   ]);
+  // 휴가: 못 불러와도(표가 아직 없어도) 할 일 기능은 그대로 동작
+  S.daysOff = new Map(off.error ? [] : off.data.map((r) => [r.day, r.note || ""]));
   S.notes = nt.error ? [] : nt.data; S.notesErr = nt.error ? nt.error.message : "";
   // 날짜별 메모: 못 불러와도(표가 아직 없어도) 할 일 기능은 그대로 동작
   S.dayNotes = new Map(dn.error ? [] : dn.data.map((r) => [ckKey(r.todo_id, r.day), r.note]));
@@ -589,15 +621,59 @@ function occAt(t, k) {
   if (u === "month") { const [y, m, d] = s.split("-").map(Number); return ymd(new Date(y, m - 1 + n, Math.min(d, new Date(y, m + n, 0).getDate()))); }
   return addDays(s, u === "week" ? 7 * n : n);
 }
+/* ---- 쉬는 날: 토/일 + 한국 공휴일 + 내가 정한 휴가 → 반복에서 빠짐 ---- */
+const isWeekend = (d) => { const w = toDate(d).getDay(); return w === 0 || w === 6; };
+const isOff = (d) => isWeekend(d) || S.holidays.has(d) || S.daysOff.has(d);
+// 날짜 제목 옆 빨간 표시: "🎌 한글날", "🏖️ 연차" (주말은 표시 안 함)
+function offTag(d) {
+  const parts = [S.holidays.has(d) ? "🎌 " + S.holidays.get(d) : null, S.daysOff.has(d) ? "🏖️ " + (S.daysOff.get(d) || "휴가") : null].filter(Boolean);
+  return parts.length ? h("span", { class: "offtag" }, parts.join(" · ")) : null;
+}
+// 한국 공휴일: Nager.Date 무료 API (키 없음, 대체·임시공휴일 포함). 작년~내년 3년치를 받아
+// 이 브라우저에 저장하고 하루에 한 번만 새로 받음. 못 받으면 저장해 둔 목록을 그대로 씀
+const HOLI_KEY = "todo.holidays";
+function setHolidays(years) {
+  S.holidays = new Map();
+  for (const list of Object.values(years)) for (const [d, n] of list) {
+    const old = S.holidays.get(d);   // 같은 날 공휴일이 두 개면 "A · B"
+    S.holidays.set(d, old && old !== n ? old + " · " + n : n);
+  }
+}
+async function loadHolidays() {
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem(HOLI_KEY)); } catch (e) {}
+  const y = Number(today().slice(0, 4)), want = [y - 1, y, y + 1];
+  if (c && c.years) setHolidays(c.years);
+  if (c && c.years && c.day === today() && want.every((x) => c.years[x])) return;   // 오늘 이미 받음
+  const years = {};
+  await Promise.all(want.map(async (yr) => {
+    try {
+      const r = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${yr}/KR`);
+      if (!r.ok) return;
+      const list = await r.json();
+      years[yr] = list.filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.date)).map((x) => [x.date, String(x.localName || x.name || "공휴일")]);
+    } catch (e) {}
+  }));
+  for (const yr of want) if (!years[yr] && c && c.years && c.years[yr]) years[yr] = c.years[yr];   // 못 받은 해는 예전 것
+  if (!Object.keys(years).length) return;
+  setHolidays(years);
+  try { localStorage.setItem(HOLI_KEY, JSON.stringify({ day: today(), years })); } catch (e) {}
+  render();
+}
+// k번째(0부터) 반복 날짜 (쉬는 날에 걸린 반복은 세지 않음). 하나도 없으면(예: 토요일 매주) null
+function nthOcc(t, k) {
+  for (let i = 0, n = 0; i < 5000; i++) { const d = occAt(t, i); if (!isOff(d) && n++ === k) return d; }
+  return null;
+}
 // 마지막 반복 날짜 (종료 날짜 / 횟수 / 종결 중 가장 이른 것). 끝이 없으면 null
 function repEnd(t) {
-  const ends = [t.repeat_until, t.repeat_count ? occAt(t, t.repeat_count - 1) : null, t.done ? doneOn(t) : null].filter(Boolean);
+  const ends = [t.repeat_until, t.repeat_count ? nthOcc(t, t.repeat_count - 1) : null, t.done ? doneOn(t) : null].filter(Boolean);
   return ends.length ? ends.sort()[0] : null;
 }
 // d가 반복 날짜인지
 function isOcc(t, d) {
   const u = rUnit(t), s = rStart(t), e = t.repeat_every || 1;
-  if (!u || d < s) return false;
+  if (!u || d < s || isOff(d)) return false;
   const end = repEnd(t); if (end && d > end) return false;
   if (u === "month") { const [y1, m1] = s.split("-").map(Number), [y2, m2] = d.split("-").map(Number), diff = (y2 - y1) * 12 + (m2 - m1); return diff % e === 0 && occAt(t, diff / e) === d; }
   return Math.round((toDate(d) - toDate(s)) / 864e5) % (u === "week" ? 7 * e : e) === 0;
@@ -632,14 +708,14 @@ function missedOcc(t, keepToday) {
 }
 // 반복 설명 문구: "2주마다 · 10회", "매일 · 11월 20일 (금)까지"
 function repeatText(r) {
-  const e = r.every || 1, base = e === 1 ? { day: "매일", week: "매주", month: "매월" }[r.unit] : e + { day: "일마다", week: "주마다", month: "개월마다" }[r.unit];
+  const e = r.every || 1, base = e === 1 ? { day: "평일", week: "매주", month: "매월" }[r.unit] : e + { day: "일마다", week: "주마다", month: "개월마다" }[r.unit];
   return base + (r.count ? ` · ${r.count}회` : r.until ? ` · ${fmtMD(r.until)}까지` : "");
 }
 function fmtMD(s) { const [, m, d] = s.split("-").map(Number); return `${m}월 ${d}일 (${"일월화수목금토"[toDate(s).getDay()]})`; }
 function isChecked(t, d) { return rUnit(t) ? S.checks.has(ckKey(t.id, d)) || (t.done && d >= doneOn(t)) : t.done; }
 async function toggleCheck(t, d, fromOverdue) {
   if (t.done) return toast("종결된 일이에요. 눌러서 '다시 진행'을 선택하면 다시 체크할 수 있어요.");
-  if (!isOcc(t, d)) return toast(`${shortDate(rStart(t))}부터 시작하는 일이에요.`);
+  if (!isOcc(t, d)) return toast(isOff(d) ? "쉬는 날(주말·공휴일·휴가)은 반복에서 빠져요." : `${shortDate(rStart(t))}부터 시작하는 일이에요.`);
   const k = ckKey(t.id, d), on = !S.checks.has(k);
   on ? S.checks.add(k) : S.checks.delete(k);
   setKeep(k, on && !!fromOverdue);
@@ -743,7 +819,8 @@ function renderHead() {
         o ? h("button", { class: "btn", onclick: () => moveWeek(0) }, "이번 주") : null,
         h("button", { class: "btn ghost", title: "이전 주", onclick: () => moveWeek(-1) }, "◀"),
         h("button", { class: "btn ghost", title: "다음 주", onclick: () => moveWeek(1) }, "▶"),
-        weekPicker(s)));
+        weekPicker(s),
+        h("button", { class: "btn ghost", title: "휴가 설정", onclick: openDaysOff }, "🏖️ 휴가")));
   } else if (v === "tips") {
     setKids(head, h("span", { class: "hicon" }, ICON.tips), h("h2", {}, "꿀팁"), h("div", { class: "actions" }, h("button", { class: "btn primary", onclick: () => openNote(null) }, "+ 새 메모")));
   } else {
@@ -852,7 +929,7 @@ function dayNotesEl(t, day, q) {
   return note ? h("div", { class: "idaynote" }, h("span", { class: "dnhead" }, "📝"), h("span", { class: "dntext" }, hl(note, q))) : null;
 }
 function groupEl(title, items, opts = {}) {
-  if (!items.length) return null;
+  if (!items.length && !opts.keep) return null;   // opts.keep: 할 일이 없어도 제목은 보여줌 (공휴일·휴가)
   items.sort(opts.order || sortTodos);   // opts.order: 다른 정렬이 필요할 때 (예: 지난 완료 = 최근 날짜 위)
   const o = { ...opts, hideProject: true };   // 프로젝트는 서브그룹 제목으로 보여주므로 항목에서는 숨김
   let body;
@@ -866,7 +943,7 @@ function groupEl(title, items, opts = {}) {
       h("ul", { class: "list" }, l.map((t) => itemEl(t, o)))));
   }
   return h("section", { class: "group" + (opts.cls ? " " + opts.cls : "") },
-    h("h4", {}, title, h("span", { class: "n" }, items.length)), body);
+    h("h4", {}, title, items.length ? h("span", { class: "n" }, items.length) : null), body);
 }
 function byDate(items, opts) {
   const map = new Map();
@@ -905,7 +982,8 @@ function renderContent() {
       // 그날 날짜인 일 + 그날 진행 중인 매일 하는 일 (그날 아침 8시가 지나야 표시)
       const d = addDays(s, i), items = S.todos.filter((x) => (!rUnit(x) && x.due_date === d) || activeOn(x, d));
       const cls = d === t0 ? "today" : d < t0 && items.some((x) => !rUnit(x) && !x.done) ? "overdue" : "";
-      out.push(groupEl(fmtDate(d), items, { hideDate: true, cls, day: d }));
+      const tag = offTag(d);   // 공휴일·휴가면 날짜 옆에 이름 (할 일이 없어도 날짜 제목은 보임)
+      out.push(groupEl([fmtDate(d), tag], items, { hideDate: true, cls, day: d, keep: !!tag }));
     }
     // 날짜가 없거나 이 주 이후인데 이 주에 완료한 일 → 주간보고용
     const doneElse = S.todos.filter((x) => !rUnit(x) && inWeek(doneOn(x)) && !inWeek(x.due_date) && !overdue.includes(x));
@@ -916,8 +994,8 @@ function renderContent() {
     // 일반 할 일: 안 끝났거나, 밀린 일 칸에서 오늘 체크한 것만 (다른 곳에서 체크하면 바로 빠짐)
     const overdue = S.todos.filter((x) => (!rUnit(x) && x.due_date && x.due_date < t0 && (!x.done || kept(x.id))) || missedOcc(x, true));
     const todays = S.todos.filter((x) => (visible(x) && x.due_date === t0) || activeOn(x, t0));
-    out = [groupEl("밀린 일", overdue, { cls: "overdue", missed: true }), groupEl("오늘 할 일", todays, { hideDate: true })];
-    if (!overdue.length && !todays.length) out = [emptyEl("오늘 할 일이 없어요 🎉")];
+    out = [groupEl("밀린 일", overdue, { cls: "overdue", missed: true }), groupEl(["오늘 할 일", offTag(t0)], todays, { hideDate: true })];
+    if (!overdue.length && !todays.length) out = [emptyEl(S.daysOff.has(t0) ? "오늘은 휴가예요 🏖️ 푹 쉬세요" : S.holidays.has(t0) ? `오늘은 공휴일(${S.holidays.get(t0)})이에요 🎌` : "오늘 할 일이 없어요 🎉")];
   } else if (v === "repeat") {
     // 반복: 모든 반복하는 일을 한곳에서 보고 수정 (진행 중 / 시작 예정 / 끝난 반복)
     const reps = S.todos.filter((x) => rUnit(x));
@@ -1259,6 +1337,47 @@ $("pDelete").onclick = async () => {
   if (S.view === "p:" + p.id) S.view = "today";
   render();
 };
+
+/* ================= 다이얼로그: 휴가 ================= */
+// 주간 화면의 [🏖️ 휴가] 버튼. 날짜(기간)를 넣으면 그 사이 평일을 휴가로 저장 → 반복에서 빠짐
+function openDaysOff() {
+  $("oFrom").value = today(); $("oTo").value = ""; $("oNote").value = "";
+  renderDaysOff();
+  $("offDlg").showModal();
+}
+// 오늘 이후 휴가 목록 (가까운 날짜가 위). ✕로 하루씩 취소
+function renderDaysOff() {
+  const t = today(), list = [...S.daysOff].filter(([d]) => d >= t).sort((a, b) => a[0].localeCompare(b[0]));
+  setKids($("oList"), list.length
+    ? list.map(([d, n]) => h("li", {}, h("span", {}, mdw(d)), h("span", { class: "grow" }, n || "휴가"),
+        h("button", { type: "button", title: "휴가 취소", "aria-label": "휴가 취소", onclick: () => removeDayOff(d) }, "✕")))
+    : h("li", { class: "none" }, "잡아둔 휴가가 없어요"));
+}
+$("oClose").onclick = () => $("offDlg").close();
+$("offForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const from = $("oFrom").value, to = $("oTo").value || from, note = $("oNote").value.trim();
+  if (!from) return;
+  if (to < from) return toast("끝 날짜가 시작 날짜보다 앞이에요.");
+  // 기간 안에서 주말·공휴일은 빼고 평일만 (원래 쉬는 날이라 휴가 일수에 안 셈)
+  const days = [];
+  for (let d = from; d <= to && days.length < 366; d = addDays(d, 1)) if (!isWeekend(d) && !S.holidays.has(d)) days.push(d);
+  if (!days.length) return toast("고른 날짜가 모두 주말·공휴일이에요.");
+  const old = new Map(S.daysOff);
+  days.forEach((d) => S.daysOff.set(d, note));
+  $("oFrom").value = ""; $("oTo").value = ""; $("oNote").value = "";
+  renderDaysOff(); render();
+  // 같은 날이 이미 있으면 메모만 바꿈 (user_id는 DB가 로그인한 사용자로 채움)
+  const { error } = await sb.from("days_off").upsert(days.map((day) => ({ day, note })), { onConflict: "user_id,day" });
+  if (error) { S.daysOff = old; renderDaysOff(); render(); return toast("휴가 저장 실패: " + error.message); }
+  toast(`휴가 ${days.length}일을 잡았어요 🏖️`);
+};
+async function removeDayOff(d) {
+  const n = S.daysOff.get(d);
+  S.daysOff.delete(d); renderDaysOff(); render();
+  const { error } = await sb.from("days_off").delete().eq("day", d);
+  if (error) { S.daysOff.set(d, n); renderDaysOff(); render(); toast("휴가 취소 실패: " + error.message); }
+}
 
 /* ================= 날짜 바뀜 처리 / PWA ================= */
 // 1분마다 확인해서 날짜가 바뀌거나 아침 8시가 되면 화면 다시 그림

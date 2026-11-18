@@ -86,6 +86,21 @@ create policy "own day notes" on public.todo_day_notes
     and exists (select 1 from public.todos t where t.id = todo_id and t.user_id = (select auth.uid()))
   );
 
+-- 내가 정한 휴가 (이 날은 반복하는 일이 빠짐). 하루에 한 줄
+create table if not exists public.days_off (
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  day        date not null,
+  note       text not null default '',
+  created_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.days_off enable row level security;
+drop policy if exists "own days off" on public.days_off;
+create policy "own days off" on public.days_off
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
 -- 꿀팁 메모장
 create table if not exists public.notes (
   id         uuid primary key default gen_random_uuid(),
