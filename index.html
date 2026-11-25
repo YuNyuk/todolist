@@ -233,7 +233,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <!-- 앱 버전: 올릴 때 README.md '버전 기록'도 함께 갱신 -->
-<div class="ver">v1.4</div>
+<div class="ver">v1.5</div>
 
 <!-- 설정 안내 -->
 <div id="setup" class="center hidden">
@@ -472,6 +472,7 @@ const S = {
   holidays: new Map(),    // 한국 공휴일: "YYYY-MM-DD" → 이름 (Nager.Date API, 브라우저에 저장)
   view: "today",          // today(오늘) | week(주간) | repeat(반복) | tips(꿀팁) | p:<id>  (접속하면 항상 오늘)
   weekOffset: 0,          // 0 = 이번 주, -1 = 지난주, 1 = 다음 주 …
+  dayOffset: 0,           // 오늘 화면: 0 = 오늘, -1 = 어제, 1 = 내일 …
   showDoneInProject: false,
   search: "",             // 찾기 입력 (주간·프로젝트 화면)
   quickDate: "today",     // today | tomorrow | none | custom
@@ -479,6 +480,7 @@ const S = {
 };
 const projById = (id) => S.projects.find((p) => p.id === id);
 function curWeek() { const s = addDays(weekStart(today()), S.weekOffset * 7); return { s, e: addDays(s, 6) }; }
+const curDay = () => addDays(today(), S.dayOffset);   // 오늘 화면에서 보고 있는 날짜
 
 /* ================= 인증 ================= */
 let signupMode = false;
@@ -726,8 +728,17 @@ async function toggleCheck(t, d, fromOverdue) {
 }
 
 /* ================= 화면: 사이드바 ================= */
-function setView(v) { S.view = v; S.weekOffset = 0; S.showDoneInProject = false; render(); }
+function setView(v) { S.view = v; S.weekOffset = 0; S.dayOffset = 0; S.showDoneInProject = false; render(); }
 function moveWeek(n) { S.weekOffset = n === 0 ? 0 : S.weekOffset + n; render(); }
+// 오늘 화면 하루씩 이동 (n = 0이면 오늘로). 추가줄 날짜도 보고 있는 날로 맞춤
+function moveDay(n) { setDay(n === 0 ? 0 : S.dayOffset + n); }
+function setDay(o) {
+  S.dayOffset = o;
+  S.quickDate = o ? "custom" : "today"; $("addDate").value = curDay();
+  render();
+}
+// 달력에서 고른 날짜로 이동
+const jumpDay = (d) => setDay(Math.round((toDate(d) - toDate(today())) / 864e5));
 // 달력에서 고른 날짜가 속한 주(금~목)로 이동
 function jumpWeek(d) {
   const toDate = (x) => { const [y, m, dd] = x.split("-").map(Number); return new Date(y, m - 1, dd); };
@@ -735,11 +746,12 @@ function jumpWeek(d) {
   render();
 }
 // 📅 버튼 + 숨겨진 날짜 입력칸: 버튼을 누르면 브라우저 기본 달력이 열림
-function weekPicker(cur) {
+// onPick: 고른 날짜로 할 일 (기본 = 그 날짜가 속한 주로 이동)
+function weekPicker(cur, onPick = jumpWeek, tip = "달력에서 주 선택") {
   const pick = h("input", { type: "date", class: "wkpick", tabindex: "-1", "aria-hidden": "true", value: cur,
-    onchange: (e) => { if (e.target.value) jumpWeek(e.target.value); } });
+    onchange: (e) => { if (e.target.value) onPick(e.target.value); } });
   const open = () => { try { pick.showPicker(); } catch (err) { pick.focus(); pick.click(); } };
-  return h("span", { class: "wkcal" }, h("button", { class: "btn ghost", title: "달력에서 주 선택", "aria-label": "달력에서 주 선택", onclick: open }, "📅"), pick);
+  return h("span", { class: "wkcal" }, h("button", { class: "btn ghost", title: tip, "aria-label": tip, onclick: open }, "📅"), pick);
 }
 function counts() {
   const t = today(); const all = S.todos.filter((x) => !x.done && (!rUnit(x) || liveRepeat(x))), open = all.filter((x) => !rUnit(x));
@@ -821,11 +833,20 @@ function renderHead() {
         h("button", { class: "btn ghost", title: "다음 주", onclick: () => moveWeek(1) }, "▶"),
         weekPicker(s),
         h("button", { class: "btn ghost", title: "휴가 설정", onclick: openDaysOff }, "🏖️ 휴가")));
+  } else if (v === "today") {
+    // 오늘 화면: ◀ ▶로 하루씩, 📅로 날짜 고르기. 제목은 오늘/어제/내일, 그 밖은 날짜
+    const o = S.dayOffset, d = curDay();
+    const label = o === 0 ? "오늘" : o === -1 ? "어제" : o === 1 ? "내일" : mdw(d);
+    setKids(head, h("span", { class: "hicon" }, ICON.today), h("h2", {}, label), h("span", { class: "sub" }, fmtDate(d).replace(/^(오늘|내일|어제) · /, "")),
+      h("div", { class: "actions" },
+        o ? h("button", { class: "btn", onclick: () => moveDay(0) }, "오늘") : null,   // 주간처럼 화살표 왼쪽
+        h("button", { class: "btn ghost", title: "전날", onclick: () => moveDay(-1) }, "◀"),
+        h("button", { class: "btn ghost", title: "다음날", onclick: () => moveDay(1) }, "▶"),
+        weekPicker(d, jumpDay, "달력에서 날짜 선택")));
   } else if (v === "tips") {
     setKids(head, h("span", { class: "hicon" }, ICON.tips), h("h2", {}, "꿀팁"), h("div", { class: "actions" }, h("button", { class: "btn primary", onclick: () => openNote(null) }, "+ 새 메모")));
   } else {
-    const titles = { today: "오늘", repeat: "반복" };
-    setKids(head, h("span", { class: "hicon" }, ICON[v]), h("h2", {}, titles[v]), v === "today" ? h("span", { class: "sub" }, fmtDate(today()).replace("오늘 · ", "")) : null);
+    setKids(head, h("span", { class: "hicon" }, ICON[v]), h("h2", {}, "반복"));
   }
   $("addForm").classList.toggle("hidden", v === "tips");   // 꿀팁 화면에서는 할 일 추가줄 숨김
   // 프로젝트 화면이면 그 프로젝트, 다른 화면으로 넘어오면 '프로젝트 없음'으로 초기화
@@ -840,6 +861,7 @@ function renderHead() {
   sel.value = projById(cur) ? cur : "";
   // 날짜 기본값은 화면을 바꿨을 때만 초기화 (추가할 때마다 '오늘'로 되돌아가지 않게)
   if (changed && (v === "today" || v === "week")) S.quickDate = "today";
+  if (v === "today" && S.dayOffset && S.quickDate === "custom" && !$("addDate").value) $("addDate").value = curDay();
   renderQuick();
 }
 function renderQuick() {
@@ -989,6 +1011,13 @@ function renderContent() {
     const doneElse = S.todos.filter((x) => !rUnit(x) && inWeek(doneOn(x)) && !inWeek(x.due_date) && !overdue.includes(x));
     out.push(groupEl("이 주에 완료한 다른 일", doneElse, {}));
     if (!out.some(Boolean)) out = [emptyEl("이 주에 할 일이 없어요")];
+  } else if (v === "today" && S.dayOffset) {
+    // 다른 날 보기 (◀ ▶): 그날 날짜인 일 + 그날 반복 (주간 화면 그 요일 칸과 같음). 밀린 일은 오늘에만
+    const d = curDay(), items = S.todos.filter((x) => (!rUnit(x) && x.due_date === d) || activeOn(x, d));
+    const cls = d < t0 && items.some((x) => !rUnit(x) && !x.done) ? "overdue" : "";
+    out = [groupEl(["할 일", offTag(d)], items, { hideDate: true, cls, day: d })];
+    if (!items.length) out = [emptyEl(S.daysOff.has(d) ? "이 날은 휴가예요 🏖️" : S.holidays.has(d) ? `이 날은 공휴일(${S.holidays.get(d)})이에요 🎌`
+      : d > t0 ? "이 날 할 일이 없어요 (반복하는 일은 그날 아침 8시에 나타나요)" : "이 날 할 일이 없어요")];
   } else if (v === "today") {
     // 밀린 일 = 지난 날짜인데 못 끝낸 일 + 놓친 반복 (반복 설정에서 '밀린 일에 표시'를 켠 것)
     // 일반 할 일: 안 끝났거나, 밀린 일 칸에서 오늘 체크한 것만 (다른 곳에서 체크하면 바로 빠짐)
